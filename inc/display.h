@@ -8,18 +8,20 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "ssd1306.h"
 #include "constants.h"
 
 /* Definitions -------------------------------------------------------------- */
 
-// This is slightly faster than bitRead (also bits are read from left to right)
-const static uint8_t bit_mask[8] = {128, 64, 32, 16, 8, 4, 2, 1};
-#define read_bit(b, n) ((bit_mask[n] >> b) & 0x1)
+#define DISPLAY_SIZE (SCREEN_WIDTH * ((SCREEN_HEIGHT + 7) / 8))
 
 /* Function definitions ----------------------------------------------------- */
 
 void setupDisplay(void);
+void updateDisplay(void);
+void clearDisplay(void);
+void invertDisplay(bool i);
+void clearRect(uint8_t x, uint8_t y, uint8_t h, uint8_t w);
+
 void fps(void);
 bool getGradientPixel(uint8_t x, uint8_t y, uint8_t i);
 float getActualFps(void);
@@ -34,24 +36,20 @@ void drawSprite(int8_t x, int8_t y, const uint8_t bitmap[],
 void drawChar(int8_t x, int8_t y, char ch);
 void drawText(int8_t x, int8_t y, char *txt, bool space);
 void drawInteger(uint8_t x, uint8_t y, uint8_t num);
+void drawBitmap(int16_t x, int16_t y, const uint8_t bitmap[], int16_t w,
+				int16_t h, bool color);
+bool getPixel(int16_t x, int16_t y);
 
 /* Global variables --------------------------------------------------------- */
 
-// Initialize screen. Following line is for OLED 128x64 connected by I2C
-// Adafruit_SSD1306<SCREEN_WIDTH, SCREEN_HEIGHT> display;
-
 // FPS control
-float delta = 1;
-uint32_t lastFrameTime = 0;
-
-#ifdef OPTIMIZE_SSD1306
-// Optimizations for SSD1306 handles buffer directly
-uint8_t *display_buf;
-#endif
+extern float delta;
+extern uint32_t lastFrameTime;
 
 // We don't handle more than MAX_RENDER_DEPTH depth, so we can safety store
 // z values in a byte with 1 decimal and save some memory,
-uint8_t zbuffer[ZBUFFER_SIZE];
+extern uint8_t display[DISPLAY_SIZE];
+extern uint8_t zbuffer[ZBUFFER_SIZE];
 
 #endif /* DISPLAY_H */
 

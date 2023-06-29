@@ -1,35 +1,48 @@
 /* Includes ----------------------------------------------------------------- */
 
 #include <stdio.h>
+#include <string.h>
 #include <math.h>
 
 #include "display.h"
 #include "sprites.h"
 #include "platform.h"
+#include "utils.h"
 
-/* Definitions -------------------------------------------------------------- */
+#include "raylib.h"
 
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
+/* Global variables --------------------------------------------------------- */
+
+uint8_t display[DISPLAY_SIZE];
+uint8_t zbuffer[ZBUFFER_SIZE];
+float delta = 1;
+uint32_t lastFrameTime = 0;
 
 /* Function definitions ----------------------------------------------------- */
 
 void setupDisplay(void)
 {
-	// Setup display
-	// SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-	// 	if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Fixed from 0x3D
-	// 		Serial.println(F("SSD1306 allocation failed"));
-	// 		while (1)
-	// 			; // Don't proceed, loop forever
-	// 	}
-
-	// #ifdef OPTIMIZE_SSD1306
-	// 	display_buf = display.getBuffer();
-	// #endif
+	// initialize display
+	memset(display, 0x00, DISPLAY_SIZE);
 
 	// initialize z buffer
 	memset(zbuffer, 0xFF, ZBUFFER_SIZE);
+}
+
+void updateDisplay(void)
+{
+	for (int16_t x = 0; x < SCREEN_WIDTH; x++)
+	{
+		for (int16_t y = 0; y < SCREEN_WIDTH; y++)
+		{
+			bool value = getPixel(x, y);
+			DrawPixel(x, y, value ? WHITE : BLACK);
+		}
+	}
+}
+
+void invertDisplay(bool i)
+{
 }
 
 // Adds a delay to limit play to specified fps
@@ -39,21 +52,20 @@ void fps(void)
 	while (millis() - lastFrameTime < FRAME_TIME)
 	{
 	};
+
 	delta = (float)(millis() - lastFrameTime) / FRAME_TIME;
 	lastFrameTime = millis();
 }
 
 float getActualFps(void)
 {
-	return 1000 / (FRAME_TIME * delta);
+	return 1000.0f / (FRAME_TIME * delta);
 }
 
 // Faster way to render vertical bits
 void drawByte(uint8_t x, uint8_t y, uint8_t b)
 {
-#ifdef OPTIMIZE_SSD1306
-	display_buf[(y / 8) * SCREEN_WIDTH + x] = b;
-#endif
+	display[(y / 8) * SCREEN_WIDTH + x] = b;
 }
 
 bool getGradientPixel(uint8_t x, uint8_t y, uint8_t i)
@@ -63,15 +75,14 @@ bool getGradientPixel(uint8_t x, uint8_t y, uint8_t i)
 	if (i >= GRADIENT_COUNT - 1)
 		return 1;
 
-	uint8_t index =
-		MAX(0, MIN(GRADIENT_COUNT - 1, i)) * GRADIENT_WIDTH *
-			GRADIENT_HEIGHT // gradient index
-		+ y * GRADIENT_WIDTH %
-			  (GRADIENT_WIDTH * GRADIENT_HEIGHT) // y byte offset
-		+ x / GRADIENT_HEIGHT % GRADIENT_WIDTH;	 // x byte offset
+	uint8_t index = (fmaxf(0.0f, fminf(GRADIENT_COUNT - 1, i)) *
+					 GRADIENT_WIDTH * GRADIENT_HEIGHT) +
+					((y * GRADIENT_WIDTH) %
+					 (GRADIENT_WIDTH * GRADIENT_HEIGHT)) +
+					((x / GRADIENT_HEIGHT) % GRADIENT_WIDTH);
 
 	// return the bit based on x
-	return read_bit(gradient[index], x % 8);
+	return READ_BIT(*(gradient + index), x % 8);
 }
 
 // void fadeScreen(uint8_t intensity, bool color = 0)
@@ -82,7 +93,9 @@ void fadeScreen(uint8_t intensity, bool color)
 		for (uint8_t y = 0; y < SCREEN_HEIGHT; y++)
 		{
 			if (getGradientPixel(x, y, intensity))
+			{
 				drawPixel(x, y, color, false);
+			}
 		}
 	}
 }
@@ -93,26 +106,24 @@ void fadeScreen(uint8_t intensity, bool color)
 void drawPixel(int8_t x, int8_t y, bool color, bool raycasterViewport)
 {
 	// prevent write out of screen buffer
-	if (x < 0 || x >= SCREEN_WIDTH || y < 0 ||
-		y >= (raycasterViewport ? RENDER_HEIGHT : SCREEN_HEIGHT))
+	if ((x < 0) ||
+		(x >= SCREEN_WIDTH) ||
+		(y < 0) ||
+		(y >= (raycasterViewport ? RENDER_HEIGHT : SCREEN_HEIGHT)))
 	{
 		return;
 	}
 
-#ifdef OPTIMIZE_SSD1306
 	if (color)
 	{
 		// white
-		display_buf[x + (y / 8) * SCREEN_WIDTH] |= (1 << (y & 7));
+		display[x + (y / 8) * SCREEN_WIDTH] |= (1 << (y & 7));
 	}
 	else
 	{
 		// black
-		display_buf[x + (y / 8) * SCREEN_WIDTH] &= ~(1 << (y & 7));
+		display[x + (y / 8) * SCREEN_WIDTH] &= ~(1 << (y & 7));
 	}
-#else
-	display.drawPixel(x, y, color);
-#endif
 }
 
 // For raycaster only
@@ -121,11 +132,9 @@ void drawPixel(int8_t x, int8_t y, bool color, bool raycasterViewport)
 void drawVLine(uint8_t x, int8_t start_y, int8_t end_y, uint8_t intensity)
 {
 	int8_t y;
-	int8_t lower_y = MAX(MIN(start_y, end_y), 0);
-	int8_t higher_y = MIN(MAX(start_y, end_y), RENDER_HEIGHT - 1);
+	int8_t lower_y = fmaxf(fminf(start_y, end_y), 0);
+	int8_t higher_y = fminf(fmaxf(start_y, end_y), RENDER_HEIGHT - 1);
 	uint8_t c;
-
-#ifdef OPTIMIZE_SSD1306
 	uint8_t bp;
 	uint8_t b;
 	for (c = 0; c < RES_DIVIDER; c++)
@@ -153,22 +162,21 @@ void drawVLine(uint8_t x, int8_t start_y, int8_t end_y, uint8_t intensity)
 			drawByte(x + c, y - 1, b);
 		}
 	}
-#else
-	y = lower_y;
-	while (y <= higher_y)
-	{
-		for (c = 0; c < RES_DIVIDER; c++)
-		{
-			// bypass black pixels
-			if (getGradientPixel(x + c, y, intensity))
-			{
-				drawPixel(x + c, y, 1, true);
-			}
-		}
 
-		y++;
-	}
-#endif
+	// 	y = lower_y;
+	// 	while (y <= higher_y)
+	// 	{
+	// 		for (c = 0; c < RES_DIVIDER; c++)
+	// 		{
+	// 			// bypass black pixels
+	// 			if (getGradientPixel(x + c, y, intensity))
+	// 			{
+	// 				drawPixel(x + c, y, 1, true);
+	// 			}
+	// 		}
+
+	// 		y++;
+	// 	}
 }
 
 // Custom drawBitmap method with scale support, mask, zindex and pattern filling
@@ -179,7 +187,7 @@ void drawSprite(int8_t x, int8_t y, const uint8_t bitmap[],
 	uint8_t tw = (float)w / distance;
 	uint8_t th = (float)h / distance;
 	uint8_t byte_width = w / 8;
-	uint8_t pixel_size = MAX(1, 1.0 / distance);
+	uint8_t pixel_size = fmaxf(1.0f, 1.0f / distance);
 	uint16_t sprite_offset = byte_width * h * sprite;
 
 	bool pixel;
@@ -187,8 +195,8 @@ void drawSprite(int8_t x, int8_t y, const uint8_t bitmap[],
 
 	// Don't draw the whole sprite if the anchor is hidden by z buffer
 	// Not checked per pixel for performance reasons
-	if (zbuffer[MIN(MAX(x, 0), ZBUFFER_SIZE - 1) / Z_RES_DIVIDER] <
-		distance * DISTANCE_MULTIPLIER)
+	int32_t idx = fminf(fmaxf(x, 0.0f), ZBUFFER_SIZE - 1.0f) / Z_RES_DIVIDER;
+	if (zbuffer[idx] < distance * DISTANCE_MULTIPLIER)
 	{
 		return;
 	}
@@ -206,26 +214,22 @@ void drawSprite(int8_t x, int8_t y, const uint8_t bitmap[],
 		for (uint8_t tx = 0; tx < tw; tx += pixel_size)
 		{
 			uint8_t sx = tx * distance; // The x from the sprite
-			uint16_t byte_offset =
-				sprite_offset + sy * byte_width + sx / 8;
+			uint16_t byte_offset = sprite_offset + sy * byte_width + sx / 8;
 
 			// Don't draw out of screen
-			if (x + tx < 0 || x + tx >= SCREEN_WIDTH)
+			if ((x + tx < 0) || (x + tx >= SCREEN_WIDTH))
 				continue;
 
-			maskPixel = read_bit(mask[byte_offset], sx % 8);
+			maskPixel = READ_BIT(mask[byte_offset], sx % 8);
 
 			if (maskPixel)
 			{
-				pixel = read_bit(bitmap[byte_offset], sx % 8);
+				pixel = READ_BIT(bitmap[byte_offset], sx % 8);
 				for (uint8_t ox = 0; ox < pixel_size; ox++)
 				{
-					for (uint8_t oy = 0; oy < pixel_size;
-						 oy++)
+					for (uint8_t oy = 0; oy < pixel_size; oy++)
 					{
-						drawPixel(x + tx + ox,
-								  y + ty + oy, pixel,
-								  true);
+						drawPixel(x + tx + ox, y + ty + oy, pixel, true);
 					}
 				}
 			}
@@ -244,16 +248,22 @@ void drawChar(int8_t x, int8_t y, char ch)
 	uint8_t b;
 
 	// Find the character
-	while (CHAR_MAP[c] != ch && CHAR_MAP[c] != '\0')
+	while ((CHAR_MAP[c] != ch) && (CHAR_MAP[c] != '\0'))
+	{
 		c++;
+	}
 
 	bOffset = c / 2;
 	for (uint8_t line = 0; line < CHAR_HEIGHT; line++)
 	{
 		b = bmp_font[(line * bmp_font_width) + bOffset];
 		for (n = 0; n < CHAR_WIDTH; n++)
-			if (read_bit(b, (c % 2 == 0 ? 0 : 4) + n))
+		{
+			if (READ_BIT(b, (c % 2 == 0 ? 0 : 4) + n))
+			{
 				drawPixel(x + n, y + line, 1, false);
+			}
+		}
 	}
 }
 
@@ -271,12 +281,49 @@ void drawText(int8_t x, int8_t y, char *txt, bool space)
 	}
 }
 
-// Draw an integer (3 digit MAX!)
+// Draw an integer (3 digit fmaxf!)
 void drawInteger(uint8_t x, uint8_t y, uint8_t num)
 {
 	char buf[4]; // 3 char + \0
 	sprintf(buf, "%d", num);
 	drawText(x, y, buf, true);
+}
+
+void drawBitmap(int16_t x, int16_t y, const uint8_t bitmap[], int16_t w,
+				int16_t h, bool color)
+{
+	int16_t byteWidth = (w + 7) / 8; // Bitmap scanline pad = whole byte
+	uint8_t byte = 0;
+
+	for (int16_t j = 0; j < h; j++, y++)
+	{
+		for (int16_t i = 0; i < w; i++)
+		{
+			if (i & 7)
+			{
+				byte <<= 1;
+			}
+			else
+			{
+				byte = bitmap[j * byteWidth + i / 8];
+			}
+			if (byte & 0x80)
+			{
+				drawPixel(x + i, y, color, false);
+			}
+		}
+	}
+}
+
+bool getPixel(int16_t x, int16_t y)
+{
+	if ((x >= 0) && (x < SCREEN_WIDTH) && (y >= 0) && (y < SCREEN_HEIGHT))
+	{
+		// Pixel is in-bounds. Rotate coordinates if needed.
+		return display[x + (y / 8) * SCREEN_WIDTH] & (1 << (y & 7));
+	}
+
+	return false; // Pixel out of bounds
 }
 
 /* -------------------------------------------------------------------------- */

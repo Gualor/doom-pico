@@ -24,7 +24,7 @@
 #define SOUND_PIN 9 // do not change, belongs to used timer
 
 // GFX settings
-#define OPTIMIZE_SSD1306 // Optimizations for SSD1366 displays
+// #define OPTIMIZE_SSD1306 // Optimizations for SSD1366 displays
 
 #define FRAME_TIME 66.666666f  // Desired time per frame in ms (66.666666 is ~15 fps)
 #define RES_DIVIDER 2		   // Higher values will result in lower horizontal resolution when rasterize and lower process and memory usage \

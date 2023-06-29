@@ -2,10 +2,19 @@
 
 #include "sound.h"
 
+/* Global variables --------------------------------------------------------- */
+
+volatile bool sound = false;
+
+static uint8_t idx = 0;
+static uint16_t snd_ptr = 0;
+static uint8_t snd_len = 0;
+
 /* Function definitions ----------------------------------------------------- */
 
 void sound_init(void)
 {
+	sound = false;
 	// pinMode(SOUND_PIN, OUTPUT);
 
 	// TCCR2A = (1 << WGM21); // CTC
