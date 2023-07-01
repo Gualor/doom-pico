@@ -1,13 +1,7 @@
-/* Header guard ------------------------------------------------------------- */
-
 #ifndef INPUT_H
 #define INPUT_H
 
-/* Includes ----------------------------------------------------------------- */
-
 #include <stdbool.h>
-
-/* Data types --------------------------------------------------------------- */
 
 enum BUTTONS
 {
@@ -25,20 +19,13 @@ enum BUTTONS
 	RB = 0x0800
 };
 
-/* Function definitions ----------------------------------------------------- */
-
 void input_setup(void);
+void input_update(void);
 bool input_up(void);
 bool input_down(void);
 bool input_left(void);
 bool input_right(void);
 bool input_fire(void);
-
-#ifdef SNES_CONTROLLER
-bool input_start(void);
-void getControllerData(void);
-#endif
+bool input_select(void);
 
 #endif /* INPUT_H */
-
-/* -------------------------------------------------------------------------- */

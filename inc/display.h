@@ -12,35 +12,34 @@
 
 /* Definitions -------------------------------------------------------------- */
 
-#define DISPLAY_SIZE (SCREEN_WIDTH * ((SCREEN_HEIGHT + 7) / 8))
+#define OPTIMIZE_DISPLAY
+#define ZBUFFER_SIZE (SCREEN_WIDTH / Z_RES_DIVIDER)
+#define DISPLAY_BUF_SIZE (SCREEN_WIDTH * ((SCREEN_HEIGHT + 7) / 8))
 
-/* Function definitions ----------------------------------------------------- */
+void display_init();
+void display_update(void);
+void display_clear(void);
+void display_invert(void);
+void display_fade(uint8_t intensity, bool color);
 
-void setupDisplay(void);
-void updateDisplay(void);
-void clearDisplay(void);
-void invertDisplay(bool i);
-void clearRect(uint8_t x, uint8_t y, uint8_t h, uint8_t w);
-
-void fps(void);
-bool getGradientPixel(uint8_t x, uint8_t y, uint8_t i);
+// void fps(void);
 float getActualFps(void);
-void fadeScreen(uint8_t intensity, bool color);
-void drawByte(uint8_t x, uint8_t y, uint8_t b);
-uint8_t getByte(uint8_t x, uint8_t y);
-void drawPixel(int8_t x, int8_t y, bool color, bool raycasterViewport);
-void drawVLine(uint8_t x, int8_t start_y, int8_t end_y, uint8_t intensity);
-void drawSprite(int8_t x, int8_t y, const uint8_t bitmap[],
-				const uint8_t mask[], int16_t w, int16_t h, uint8_t sprite,
-				float distance);
-void drawChar(int8_t x, int8_t y, char ch);
-void drawText(int8_t x, int8_t y, char *txt, bool space);
-void drawInteger(uint8_t x, uint8_t y, uint8_t num);
-void drawBitmap(int16_t x, int16_t y, const uint8_t bitmap[], int16_t w,
-				int16_t h, bool color);
-bool getPixel(int16_t x, int16_t y);
 
-/* Global variables --------------------------------------------------------- */
+bool display_get_gradient(uint8_t x, uint8_t y, uint8_t i);
+void display_draw_byte(uint8_t x, uint8_t y, uint8_t b);
+uint8_t display_get_byte(uint8_t x, uint8_t y);
+void display_draw_pixel(int8_t x, int8_t y, bool color, bool raycasterViewport);
+bool display_get_pixel(int16_t x, int16_t y);
+void display_draw_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, bool color);
+void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y, uint8_t intensity);
+void display_draw_bitmap(int16_t x, int16_t y, const uint8_t bitmap[], int16_t w,
+						 int16_t h, uint16_t color);
+void display_draw_sprite(int8_t x, int8_t y, const uint8_t bitmap[],
+						 const uint8_t mask[], int16_t w, int16_t h,
+						 uint8_t sprite, float distance);
+void display_draw_char(int8_t x, int8_t y, char ch);
+void display_draw_text(int8_t x, int8_t y, char *txt, uint8_t space);
+void display_draw_int(uint8_t x, uint8_t y, uint8_t num);
 
 // FPS control
 extern float delta;
@@ -48,9 +47,7 @@ extern uint32_t lastFrameTime;
 
 // We don't handle more than MAX_RENDER_DEPTH depth, so we can safety store
 // z values in a byte with 1 decimal and save some memory,
-extern uint8_t display[DISPLAY_SIZE];
 extern uint8_t zbuffer[ZBUFFER_SIZE];
+extern uint8_t display_buf[DISPLAY_BUF_SIZE];
 
 #endif /* DISPLAY_H */
-
-/* -------------------------------------------------------------------------- */

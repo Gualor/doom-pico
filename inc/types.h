@@ -1,13 +1,5 @@
-/* Header guard ------------------------------------------------------------- */
-
-#ifndef TYPES_H
-#define TYPES_H
-
-/* Includes ----------------------------------------------------------------- */
-
-#include <stdint.h>
-
-/* Definitions -------------------------------------------------------------- */
+#ifndef _types_h
+#define _types_h
 
 #define UID_null 0
 
@@ -24,25 +16,19 @@
 #define E_KEY 0x9	   // K
 #define E_FIREBALL 0xA // not in map
 
-/* Data types --------------------------------------------------------------- */
-
 typedef uint16_t UID;
 typedef uint8_t EType;
 
-struct Coords
+typedef struct
 {
 	float x;
 	float y;
-};
-
-/* Function prototypes ------------------------------------------------------ */
+} Coords;
 
 UID create_uid(EType type, uint8_t x, uint8_t y);
 EType uid_get_type(UID uid);
 
-struct Coords create_coords(float x, float y);
-uint8_t coords_distance(struct Coords *a, struct Coords *b);
+Coords create_coords(float x, float y);
+uint8_t coords_distance(Coords *a, Coords *b);
 
-#endif /* TYPES_H */
-
-/* -------------------------------------------------------------------------- */
+#endif

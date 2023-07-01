@@ -1,22 +1,20 @@
-/* Header guard ------------------------------------------------------------- */
-
-#ifndef ENTITIES_H
-#define ENTITIES_H
-
-/* Includes ----------------------------------------------------------------- */
+#ifndef _entities_h
+#define _entities_h
 
 #include <stdint.h>
 #include <stdbool.h>
 
 #include "types.h"
 
-/* Definitions -------------------------------------------------------------- */
-
 // Shortcuts
-#define create_player(x, y)                                       \
-	{                                                             \
-		create_coords((float)x + 0.5, (float)y + 0.5),            \
-			create_coords(1, 0), create_coords(0, -0.66), 0, 100, \
+#define create_player(x, y)                            \
+	(Player)                                           \
+	{                                                  \
+		create_coords((float)x + 0.5, (float)y + 0.5), \
+			create_coords(1, 0),                       \
+			create_coords(0, -0.66),                   \
+			0,                                         \
+			100,                                       \
 	}
 
 #define create_enemy(x, y) create_entity(E_ENEMY, x, y, S_STAND, 100)
@@ -35,43 +33,35 @@
 #define S_OPEN 7
 #define S_CLOSE 8
 
-/* Data types --------------------------------------------------------------- */
-
-struct Player
+typedef struct
 {
-	struct Coords pos;
-	struct Coords dir;
-	struct Coords plane;
+	Coords pos;
+	Coords dir;
+	Coords plane;
 	float velocity;
 	uint8_t health;
 	uint8_t keys;
-};
+} Player;
 
-struct Entity
+typedef struct
 {
 	UID uid;
-	struct Coords pos;
+	Coords pos;
 	uint8_t state;
 	uint8_t health; // angle for fireballs
 	uint8_t distance;
 	uint8_t timer;
-};
+} Entity;
 
-struct StaticEntity
+typedef struct
 {
 	UID uid;
 	uint8_t x;
 	uint8_t y;
 	bool active;
-};
+} StaticEntity;
 
-/* Function prototypes ------------------------------------------------------ */
+Entity create_entity(uint8_t type, uint8_t x, uint8_t y, uint8_t initialState, uint8_t initialHealth);
+StaticEntity create_static_entity(UID uid, uint8_t x, uint8_t y, bool active);
 
-struct Entity create_entity(uint8_t type, uint8_t x, uint8_t y,
-							uint8_t initialState, uint8_t initialHealth);
-struct StaticEntity create_static_entity(UID uid, uint8_t x, uint8_t y,
-										 bool active);
-
-#endif /* ENTITIES_H */
-
-/* -------------------------------------------------------------------------- */
+#endif

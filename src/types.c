@@ -1,36 +1,26 @@
-/* Includes ----------------------------------------------------------------- */
-
 #include <stdint.h>
 #include <math.h>
 
 #include "types.h"
 #include "constants.h"
+#include "utils.h"
 
-/* Function definitions ----------------------------------------------------- */
-
-float sq(float value)
+Coords create_coords(float x, float y)
 {
-	return value * value;
+	return (Coords){x, y};
 }
 
-struct Coords create_coords(float x, float y)
+uint8_t coords_distance(Coords *a, Coords *b)
 {
-	return (struct Coords){x, y};
+	return sqrtf(POW2(a->x - b->x) + POW2(a->y - b->y)) * DISTANCE_MULTIPLIER;
 }
 
-uint8_t coords_distance(struct Coords *a, struct Coords *b)
+UID create_uid(uint8_t type, uint8_t x, uint8_t y)
 {
-	return sqrt(sq(a->x - b->x) + sq(a->y - b->y)) * DISTANCE_MULTIPLIER;
-}
-
-UID create_uid(EType type, uint8_t x, uint8_t y)
-{
-	return (((y << LEVEL_WIDTH_BASE) | x) << 4) | type;
+	return ((y << LEVEL_WIDTH_BASE) | x) << 4 | type;
 }
 
 uint8_t uid_get_type(UID uid)
 {
 	return uid & 0x0F;
 }
-
-/* -------------------------------------------------------------------------- */

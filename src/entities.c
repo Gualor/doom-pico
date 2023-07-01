@@ -1,26 +1,17 @@
-/* Includes ----------------------------------------------------------------- */
-
 #include <stdint.h>
-
 #include "entities.h"
 #include "types.h"
 #include "constants.h"
 
-/* Function definitions ----------------------------------------------------- */
-
-struct Entity create_entity(uint8_t type, uint8_t x, uint8_t y,
-							uint8_t initialState, uint8_t initialHealth)
+Entity create_entity(uint8_t type, uint8_t x, uint8_t y, uint8_t initialState,
+					 uint8_t initialHealth)
 {
 	UID uid = create_uid(type, x, y);
-	struct Coords pos = create_coords((double)x + .5, (double)y + .5);
-	struct Entity new_entity = {uid, pos, initialState, initialHealth, 0, 0};
-	return new_entity;
+	Coords pos = create_coords((float)x + .5, (float)y + .5);
+	return (Entity){uid, pos, initialState, initialHealth, 0, 0};
 }
 
-struct StaticEntity create_static_entity(UID uid, uint8_t x, uint8_t y,
-										 bool active)
+StaticEntity crate_static_entity(UID uid, uint8_t x, uint8_t y, bool active)
 {
-	return (struct StaticEntity){uid, x, y, active};
+	return (StaticEntity){uid, x, y, active};
 }
-
-/* -------------------------------------------------------------------------- */

@@ -6,4 +6,6 @@
 uint32_t millis(void);
 void delay(uint32_t ms);
 
-#endif /* PLATFORM_H */
+extern volatile uint32_t init_clock;
+
+#endif
