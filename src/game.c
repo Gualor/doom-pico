@@ -21,6 +21,16 @@
 /** TODO: Remove raylib dependencies from here */
 #include "raylib.h"
 
+/* Data types --------------------------------------------------------------- */
+
+typedef enum
+{
+	SCENE_INTRO,
+	SCENE_LEVEL1,
+	/* Add more levels here */
+	SCENE_EXIT
+} GameScene;
+
 /* Function prototypes ------------------------------------------------------ */
 
 /* Level */
@@ -35,35 +45,33 @@ void game_spawn_fireball(float x, float y);
 void game_remove_entity(UID uid);
 void game_remove_static_entity(UID uid);
 void game_update_entities(const uint8_t level[]);
-uint8_t game_sort_entities(void);
+void game_sort_entities(void);
 
 /* Game mechanics */
 UID game_detect_collision(const uint8_t level[], Coords *pos, float rel_x,
 						  float rel_y, bool only_walls);
 UID game_update_position(const uint8_t level[], Coords *pos, float rel_x,
 						 float rel_y, bool only_walls);
-Coords game_translate_into_view(Coords *pos);
 void game_fire_shootgun(void);
 
 /* Graphics */
+Coords game_translate_into_view(Coords *pos);
 void game_render_map(const uint8_t level[], float view_height);
 void game_render_entities(float view_height);
 void game_render_gun(uint8_t gun_pos, float amount_jogging);
-void game_render_hud_symbols(void);
 void game_render_hud(void);
 void game_render_stats(void);
 
 /* Scenes */
-void game_jump_to_scene(uint8_t target_scene);
-void game_run_intro(void);
-void game_run_level(void);
-void game_run_exit(void);
+void game_jump_to_scene(GameScene scene);
+void game_run_intro_scene(void);
+void game_run_level_scene(void);
+void game_run_exit_scene(void);
 
 /* Global variables --------------------------------------------------------- */
 
 /* Graphics */
-static bool invert_screen = false;
-static uint8_t flash_screen = 0;
+static bool flash_screen = false;
 
 /* Entities */
 static Player player;
@@ -84,30 +92,30 @@ static float jogging;
 static uint8_t fade = 0; // GRADIENT_COUNT - 1;
 
 /* Scenes */
-static void (*game_run_scene)(void) = game_run_intro;
+static void (*game_run_scene)(void) = game_run_intro_scene;
 
 /* Function definitions ----------------------------------------------------- */
 
 // Jump to another scene
-void game_jump_to_scene(uint8_t target_scene)
+void game_jump_to_scene(GameScene scene)
 {
-	switch (target_scene)
+	switch (scene)
 	{
-	case GAME_INTRO:
-		game_run_scene = game_run_intro;
+	case SCENE_INTRO:
+		game_run_scene = game_run_intro_scene;
 		break;
 
-	case GAME_PLAY:
+	case SCENE_LEVEL1:
 		game_level_init(level_1);
-		game_run_scene = game_run_level;
+		game_run_scene = game_run_level_scene;
 		break;
 
-	case GAME_EXIT:
-		game_run_scene = game_run_exit;
+	case SCENE_EXIT:
+		game_run_scene = game_run_exit_scene;
 		break;
 
 	default:
-		game_run_scene = game_run_intro;
+		game_run_scene = game_run_intro_scene;
 		break;
 	}
 }
@@ -355,7 +363,7 @@ UID game_update_position(const uint8_t level[], Coords *pos, float rel_x,
 	if (!collide_y)
 		pos->y += rel_y;
 
-	return collide_x || collide_y || UID_NULL;
+	return (collide_x || collide_y || UID_NULL);
 }
 
 void game_update_entities(const uint8_t level[])
@@ -468,7 +476,7 @@ void game_update_entities(const uint8_t level[])
 						player.health = MAX(
 							0, player.health - ENEMY_MELEE_DAMAGE);
 						entity[i].timer = 14;
-						flash_screen = 1;
+						flash_screen = true;
 					}
 				}
 				else
@@ -486,7 +494,7 @@ void game_update_entities(const uint8_t level[])
 			{
 				// Hit the player and disappear
 				player.health = MAX(0, player.health - ENEMY_FIREBALL_DAMAGE);
-				flash_screen = 1;
+				flash_screen = true;
 				game_remove_entity(entity[i].uid);
 				continue; // continue in the loop
 			}
@@ -519,7 +527,7 @@ void game_update_entities(const uint8_t level[])
 				sound_play(medkit_snd, MEDKIT_SND_LEN);
 				entity[i].state = S_HIDDEN;
 				player.health = MIN(100, player.health + 50);
-				flash_screen = 1;
+				flash_screen = true;
 			}
 			break;
 		}
@@ -532,7 +540,7 @@ void game_update_entities(const uint8_t level[])
 				sound_play(get_key_snd, GET_KEY_SND_LEN);
 				entity[i].state = S_HIDDEN;
 				player.keys++;
-				flash_screen = 1;
+				flash_screen = true;
 			}
 			break;
 		}
@@ -660,7 +668,7 @@ void game_render_map(const uint8_t level[], float view_height)
 }
 
 // Sort entities from far to close
-uint8_t game_sort_entities(void)
+void game_sort_entities(void)
 {
 	uint8_t gap = num_entities;
 	bool swapped = false;
@@ -718,19 +726,18 @@ void game_render_entities(float view_height)
 		if ((transform.y <= 0.1f) || (transform.y > MAX_SPRITE_DEPTH))
 			continue;
 
-		int16_t sprite_screen_x = HALF_WIDTH *
-								  (1.0 + transform.x / transform.y);
+		int16_t sprite_screen_x =
+			HALF_WIDTH * (1.0 + transform.x / transform.y);
 		int8_t sprite_screen_y = RENDER_HEIGHT / 2 + view_height / transform.y;
-		uint8_t type = entities_get_type(entity[i].uid);
 
-		// don´t try to render if outside of screen
+		// Don't try to render if outside of screen
 		// doing this pre-shortcut due int16 -> int8 conversion
 		// makes out-of-screen values fit into the screen space
 		if ((sprite_screen_x < -HALF_WIDTH) ||
 			(sprite_screen_x > SCREEN_WIDTH + HALF_WIDTH))
 			continue;
 
-		switch (type)
+		switch (entities_get_type(entity[i].uid))
 		{
 		case E_ENEMY:
 		{
@@ -831,19 +838,14 @@ void game_render_gun(uint8_t gun_pos, float amount_jogging)
 	display_draw_bitmap(x, y, bmp_gun_bits, BMP_GUN_WIDTH, clip_height, true);
 }
 
-// Only needed first time
-void game_render_hud_symbols(void)
-{
-	display_draw_text(2, 58, "{}", false);	// Health symbol
-	display_draw_text(40, 58, "[]", false); // Keys symbol
-	game_render_hud();
-}
-
 // Render values for the HUD
 void game_render_hud(void)
 {
 	display_draw_rect(12, 58, 15, 6, false);
 	display_draw_rect(50, 58, 5, 6, false);
+
+	display_draw_text(2, 58, "{}", false);	// Health symbol
+	display_draw_text(40, 58, "[]", false); // Keys symbol
 
 	display_draw_int(12, 58, player.health);
 	display_draw_int(50, 58, player.keys);
@@ -858,7 +860,7 @@ void game_render_stats(void)
 }
 
 // Intro screen
-void game_run_intro(void)
+void game_run_intro_scene(void)
 {
 	display_draw_bitmap(
 		(SCREEN_WIDTH - BMP_LOGO_WIDTH) / 2,
@@ -875,10 +877,10 @@ void game_run_intro(void)
 		true);
 
 	if (input_fire())
-		game_jump_to_scene(GAME_PLAY);
+		game_jump_to_scene(SCENE_LEVEL1);
 }
 
-void game_run_level(void)
+void game_run_level_scene(void)
 {
 	display_draw_rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, false);
 
@@ -980,7 +982,7 @@ void game_run_level(void)
 		if (view_height > -10.0f)
 			view_height--;
 		else if (input_fire())
-			game_jump_to_scene(GAME_EXIT);
+			game_jump_to_scene(SCENE_EXIT);
 
 		if (gun_pos > 1)
 			gun_pos -= 2;
@@ -1016,29 +1018,23 @@ void game_run_level(void)
 	else
 	{
 		// Only draw the hud after fade in effect
-		game_render_hud_symbols();
 		game_render_hud();
 		game_render_stats();
 	}
 
-	// flash screen
-	if (flash_screen > 0)
-	{
-		invert_screen = ~invert_screen;
-		flash_screen--;
-	}
-	else if (invert_screen)
+	// Flash screen
+	if (flash_screen)
 	{
 		display_invert();
-		invert_screen = false;
+		flash_screen = false;
 	}
 
 	// Exit routine
 	if (input_select())
-		game_jump_to_scene(GAME_EXIT);
+		game_jump_to_scene(SCENE_EXIT);
 }
 
-void game_run_exit(void)
+void game_run_exit_scene(void)
 {
 	// fade out effect
 	for (uint8_t i = 0; i < GRADIENT_COUNT; i++)
@@ -1047,7 +1043,7 @@ void game_run_exit(void)
 		delay(40);
 	}
 
-	game_jump_to_scene(GAME_INTRO);
+	game_jump_to_scene(SCENE_INTRO);
 }
 
 void main(void)
@@ -1055,7 +1051,7 @@ void main(void)
 	InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Doom Pico");
 	SetTargetFPS(30);
 
-	game_run_scene = game_run_intro;
+	game_run_scene = game_run_intro_scene;
 	init_clock = clock();
 	display_init();
 	input_setup();

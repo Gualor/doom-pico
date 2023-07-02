@@ -34,7 +34,7 @@ void sound_play(const uint8_t *snd, uint8_t len)
 }
 
 // Set the frequency that we will get on pin OCR1A
-void setFrequency(uint16_t freq)
+void sound_set_frequency(uint16_t freq)
 {
 	uint32_t requiredDivisor = (F_CPU / 2) / (uint32_t)freq;
 
@@ -73,7 +73,7 @@ void setFrequency(uint16_t freq)
 	//   OCR1A = top;
 }
 
-void off(void)
+void sound_off(void)
 {
 }
 
@@ -81,10 +81,10 @@ void off(void)
 //   if (sound) {
 //     if (idx++ < snd_len) {
 //       uint16_t freq = 1192030 / (60 * (uint16_t)snd_ptr[idx])); // 1193181
-//       setFrequency(freq);
+//       sound_set_frequency(freq);
 //     } else {
 //       idx = 0;
-//       off();
+//       sound_off();
 //       sound = false;
 //     }
 //   }
