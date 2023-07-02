@@ -1,9 +1,13 @@
+/* Includes ----------------------------------------------------------------- */
+
 #include <stdint.h>
 #include <math.h>
 
 #include "types.h"
 #include "constants.h"
 #include "utils.h"
+
+/* Function definitions ----------------------------------------------------- */
 
 Coords create_coords(float x, float y)
 {
@@ -24,3 +28,5 @@ uint8_t uid_get_type(UID uid)
 {
 	return uid & 0x0F;
 }
+
+/* -------------------------------------------------------------------------- */

@@ -1,3 +1,5 @@
+/* Includes ----------------------------------------------------------------- */
+
 #include <stdio.h>
 #include <string.h>
 
@@ -6,20 +8,23 @@
 #include "platform.h"
 #include "utils.h"
 
-// Temporary import, no platform dependent functions here
+/** TODO: Remove raylib dependencies from here */
 #include "raylib.h"
+
+/* Global variables --------------------------------------------------------- */
 
 float delta = 1;
 uint32_t lastFrameTime = 0;
 uint8_t zbuffer[ZBUFFER_SIZE];
 uint8_t display_buf[DISPLAY_BUF_SIZE];
 
+/* Function definitions ----------------------------------------------------- */
+
 void display_init(void)
 {
 	delta = 1;
 	lastFrameTime = 0;
 
-	// initialize z buffer
 	memset(display_buf, 0x00, DISPLAY_BUF_SIZE);
 	memset(zbuffer, 0xff, ZBUFFER_SIZE);
 }
@@ -72,7 +77,7 @@ void display_fade(uint8_t intensity, bool color)
 
 float getActualFps(void)
 {
-	return 1000 / (FRAME_TIME * delta);
+	return 1000.0f / (FRAME_TIME * delta);
 }
 
 // Faster way to render vertical bits
@@ -93,22 +98,23 @@ bool display_get_gradient(uint8_t x, uint8_t y, uint8_t i)
 	if (i >= GRADIENT_COUNT - 1)
 		return 1;
 
-	uint8_t index = MAX(0, MIN(GRADIENT_COUNT - 1, i)) *
-						GRADIENT_WIDTH * GRADIENT_HEIGHT +					  // gradient index
-					y * GRADIENT_WIDTH % (GRADIENT_WIDTH * GRADIENT_HEIGHT) + // y byte offset
-					x / GRADIENT_HEIGHT % GRADIENT_WIDTH;					  // x byte offset
+	// Gradient index + y byte offset + x byte offset
+	uint8_t index = (MAX(0, MIN(GRADIENT_COUNT - 1, i)) * GRADIENT_WIDTH *
+					 GRADIENT_HEIGHT) +
+					(y * GRADIENT_WIDTH % (GRADIENT_WIDTH * GRADIENT_HEIGHT)) +
+					(x / GRADIENT_HEIGHT % GRADIENT_WIDTH);
 
-	// return the bit based on x
-	return READ_BIT(*(gradient + index), x % 8);
+	// Return the bit based on x
+	return READ_BIT(gradient[index], x % 8);
 }
 
 // Faster drawPixel than display.display_draw_pixel.
 // Avoids some checks to make it faster.
-void display_draw_pixel(int8_t x, int8_t y, bool color, bool raycasterViewport)
+void display_draw_pixel(int8_t x, int8_t y, bool color, bool raycast)
 {
 	// prevent write out of screen buffer
 	if ((x < 0) || (x >= SCREEN_WIDTH) || (y < 0) ||
-		(y >= (raycasterViewport ? RENDER_HEIGHT : SCREEN_HEIGHT)))
+		(y >= (raycast ? RENDER_HEIGHT : SCREEN_HEIGHT)))
 		return;
 
 	if (color)
@@ -122,7 +128,8 @@ bool display_get_pixel(int16_t x, int16_t y)
 	if ((x >= 0) && (x < SCREEN_WIDTH) && (y >= 0) && (y < SCREEN_HEIGHT))
 		return (display_buf[x + (y / 8) * SCREEN_WIDTH] & (1 << (y & 7)));
 
-	return false; // Pixel out of bounds
+	// Pixel out of bounds
+	return false;
 }
 
 void display_draw_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, bool color)
@@ -137,7 +144,8 @@ void display_draw_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, bool color)
 // For raycaster only
 // Custom draw Vertical lines that fills with a pattern to simulate
 // different brightness. Affected by RES_DIVIDER
-void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y, uint8_t intensity)
+void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y,
+						uint8_t intensity)
 {
 	int8_t y;
 	int8_t lower_y = MAX(MIN(start_y, end_y), 0);
@@ -190,8 +198,8 @@ void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y, uint8_t intensi
 #endif
 }
 
-void display_draw_bitmap(int16_t x, int16_t y, const uint8_t bitmap[], int16_t w,
-						 int16_t h, uint16_t color)
+void display_draw_bitmap(int16_t x, int16_t y, const uint8_t bitmap[],
+						 int16_t w, int16_t h, uint16_t color)
 {
 
 	int16_t byteWidth = (w + 7) / 8; // Bitmap scanline pad = whole byte
@@ -217,14 +225,11 @@ void display_draw_sprite(int8_t x, int8_t y, const uint8_t bitmap[],
 						 const uint8_t mask[], int16_t w, int16_t h,
 						 uint8_t sprite, float distance)
 {
-	uint8_t tw = (float)w / distance;
-	uint8_t th = (float)h / distance;
+	uint8_t tw = w / distance;
+	uint8_t th = h / distance;
 	uint8_t byte_width = w / 8;
-	uint8_t pixel_size = MAX(1, 1.0 / distance);
+	uint8_t pixel_size = MAX(1, 1.0f / distance);
 	uint16_t sprite_offset = byte_width * h * sprite;
-
-	bool pixel;
-	bool maskPixel;
 
 	// Don't draw the whole sprite if the anchor is hidden by z buffer
 	// Not checked per pixel for performance reasons
@@ -246,19 +251,22 @@ void display_draw_sprite(int8_t x, int8_t y, const uint8_t bitmap[],
 			uint16_t byte_offset = sprite_offset + sy * byte_width + sx / 8;
 
 			// Don't draw out of screen
-			if (x + tx < 0 || x + tx >= SCREEN_WIDTH)
+			if ((x + tx < 0) || (x + tx >= SCREEN_WIDTH))
 				continue;
 
-			maskPixel = READ_BIT(*(mask + byte_offset), sx % 8);
-
+			bool maskPixel = READ_BIT(mask[byte_offset], sx % 8);
 			if (maskPixel)
 			{
-				pixel = READ_BIT(*(bitmap + byte_offset), sx % 8);
+				bool color = READ_BIT(bitmap[byte_offset], sx % 8);
 				for (uint8_t ox = 0; ox < pixel_size; ox++)
 				{
 					for (uint8_t oy = 0; oy < pixel_size; oy++)
 					{
-						display_draw_pixel(x + tx + ox, y + ty + oy, pixel, true);
+						display_draw_pixel(
+							x + tx + ox,
+							y + ty + oy,
+							color,
+							true);
 					}
 				}
 			}
@@ -271,30 +279,27 @@ void display_draw_sprite(int8_t x, int8_t y, const uint8_t bitmap[],
 // Uses less memory than display.print()
 void display_draw_char(int8_t x, int8_t y, char ch)
 {
-	uint8_t c = 0;
-	uint8_t n;
-	uint8_t bOffset;
-	uint8_t b;
-	uint8_t line = 0;
-
 	// Find the character
+	uint8_t c = 0;
 	while (CHAR_MAP[c] != ch && CHAR_MAP[c] != '\0')
 		c++;
 
-	bOffset = c / 2;
-	for (; line < CHAR_HEIGHT; line++)
+	uint8_t bOffset = c / 2;
+	for (uint8_t line = 0; line < CHAR_HEIGHT; line++)
 	{
-		b = *(bmp_font + (line * bmp_font_width + bOffset));
-		for (n = 0; n < CHAR_WIDTH; n++)
+		uint8_t b = bmp_font[line * bmp_font_width + bOffset];
+		for (uint8_t n = 0; n < CHAR_WIDTH; n++)
+		{
 			if (READ_BIT(b, (c % 2 == 0 ? 0 : 4) + n))
-				display_draw_pixel(x + n, y + line, 1, false);
+				display_draw_pixel(x + n, y + line, true, false);
+		}
 	}
 }
 
 void display_draw_text(int8_t x, int8_t y, char *txt, uint8_t space)
 {
-	uint8_t pos = x;
 	uint8_t i = 0;
+	uint8_t pos = x;
 	while ((pos < SCREEN_WIDTH) && (txt[i] != '\0'))
 	{
 		display_draw_char(pos, y, txt[i]);
@@ -310,3 +315,5 @@ void display_draw_int(uint8_t x, uint8_t y, uint8_t num)
 	sprintf(buf, "%d", num);
 	display_draw_text(x, y, buf, true);
 }
+
+/* -------------------------------------------------------------------------- */

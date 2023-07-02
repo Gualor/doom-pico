@@ -1,6 +1,14 @@
+/* Includes ----------------------------------------------------------------- */
+
 #include <stdlib.h>
 
 #include "sound.h"
+
+/* Definitions -------------------------------------------------------------- */
+
+#define F_CPU 10000000
+
+/* Global variables --------------------------------------------------------- */
 
 bool sound = false;
 
@@ -8,7 +16,7 @@ static uint8_t idx = 0;
 static uint16_t *snd_ptr = NULL;
 static uint8_t snd_len = 0;
 
-#define F_CPU 10000000
+/* Function definitions ----------------------------------------------------- */
 
 void sound_init(void)
 {
@@ -67,7 +75,6 @@ void setFrequency(uint16_t freq)
 
 void off(void)
 {
-	//   TCCR1A = 0;
 }
 
 // ISR(TIMER2_COMPA_vect) {
@@ -82,3 +89,5 @@ void off(void)
 //     }
 //   }
 // }
+
+/* -------------------------------------------------------------------------- */

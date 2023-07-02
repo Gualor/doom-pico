@@ -1,12 +1,18 @@
+/* Includes ----------------------------------------------------------------- */
+
 #include <stdint.h>
 
 #include "input.h"
 #include "constants.h"
 
-// temporary
+/** TODO: Remove raylib dependencies from here */
 #include "raylib.h"
 
+/* Global variables --------------------------------------------------------- */
+
 static volatile uint16_t buttons;
+
+/* Function definitions ----------------------------------------------------- */
 
 void input_setup(void)
 {
@@ -60,3 +66,5 @@ bool input_select(void)
 {
 	return buttons & SELECT;
 }
+
+/* -------------------------------------------------------------------------- */

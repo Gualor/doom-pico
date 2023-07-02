@@ -1,9 +1,15 @@
+/* Header guard ------------------------------------------------------------- */
+
 #ifndef INPUT_H
 #define INPUT_H
 
+/* Includes ----------------------------------------------------------------- */
+
 #include <stdbool.h>
 
-enum BUTTONS
+/* Data types --------------------------------------------------------------- */
+
+typedef enum
 {
 	B = 0x0001,
 	Y = 0x0002,
@@ -17,7 +23,9 @@ enum BUTTONS
 	X = 0x0200,
 	LB = 0x0400,
 	RB = 0x0800
-};
+} Buttons;
+
+/* Function prototypes ------------------------------------------------------ */
 
 void input_setup(void);
 void input_update(void);
@@ -29,3 +37,5 @@ bool input_fire(void);
 bool input_select(void);
 
 #endif /* INPUT_H */
+
+/* -------------------------------------------------------------------------- */

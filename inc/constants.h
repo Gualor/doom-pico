@@ -1,5 +1,9 @@
+/* Header guard ------------------------------------------------------------- */
+
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
+
+/* Definitions -------------------------------------------------------------- */
 
 #define FRAME_TIME 66.666666f  // Desired time per frame in ms (66.666666 is ~15 fps)
 #define RES_DIVIDER 2		   // Higher values will result in lower horizontal resolution when rasterize and lower process and memory usage
@@ -52,8 +56,10 @@
 // display
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
-#define HALF_WIDTH SCREEN_WIDTH / 2
+#define HALF_WIDTH (SCREEN_WIDTH / 2)
 #define RENDER_HEIGHT 56 // raycaster working height (the rest is for the hud)
-#define HALF_HEIGHT SCREEN_HEIGHT / 2
+#define HALF_HEIGHT (SCREEN_HEIGHT / 2)
 
 #endif /* CONSTANTS_H */
+
+/* -------------------------------------------------------------------------- */

@@ -1,3 +1,5 @@
+/* Includes ----------------------------------------------------------------- */
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
@@ -16,34 +18,48 @@
 #include "platform.h"
 #include "utils.h"
 
+/** TODO: Remove raylib dependencies from here */
 #include "raylib.h"
 
-void setup(void);
+/* Function prototypes ------------------------------------------------------ */
+
+/* Level */
 void game_level_init(const uint8_t level[]);
 uint8_t game_level_get_block(const uint8_t level[], uint8_t x, uint8_t y);
+
+/* Entities */
 bool game_is_entity_spawned(UID uid);
 bool game_is_static_entity_spawned(UID uid);
 void game_spawn_entity(uint8_t type, uint8_t x, uint8_t y);
 void game_spawn_fireball(float x, float y);
 void game_remove_entity(UID uid);
 void game_remove_static_entity(UID uid);
-UID game_detect_collision(const uint8_t level[], Coords *pos, float relative_x, float relative_y, bool only_walls);
-void game_fire_shootgun();
-UID game_update_position(const uint8_t level[], Coords *pos, float relative_x, float relative_y, bool only_walls);
 void game_update_entities(const uint8_t level[]);
-void game_render_map(const uint8_t level[], float view_height);
-uint8_t game_sort_entities();
+uint8_t game_sort_entities(void);
+
+/* Game mechanics */
+UID game_detect_collision(const uint8_t level[], Coords *pos, float rel_x,
+						  float rel_y, bool only_walls);
+UID game_update_position(const uint8_t level[], Coords *pos, float rel_x,
+						 float rel_y, bool only_walls);
 Coords game_translate_into_view(Coords *pos);
+void game_fire_shootgun(void);
+
+/* Graphics */
+void game_render_map(const uint8_t level[], float view_height);
 void game_render_entities(float view_height);
 void game_render_gun(uint8_t gun_pos, float amount_jogging);
-void game_render_hud_symbols();
-void game_render_hud();
-void game_render_stats();
+void game_render_hud_symbols(void);
+void game_render_hud(void);
+void game_render_stats(void);
 
+/* Scenes */
 void game_jump_to_scene(uint8_t target_scene);
-void game_run_intro();
-void game_run_level();
-void game_run_exit();
+void game_run_intro(void);
+void game_run_level(void);
+void game_run_exit(void);
+
+/* Global variables --------------------------------------------------------- */
 
 // general
 static void (*game_run_scene)(void) = game_run_intro;
@@ -70,6 +86,8 @@ static float view_height;
 static float jogging;
 static uint8_t fade = 0; // GRADIENT_COUNT - 1;
 
+/* Function definitions ----------------------------------------------------- */
+
 // Jump to another scene
 void game_jump_to_scene(uint8_t target_scene)
 {
@@ -80,7 +98,7 @@ void game_jump_to_scene(uint8_t target_scene)
 		break;
 
 	case GAME_PLAY:
-		game_level_init(sto_level_1);
+		game_level_init(level_1);
 		game_run_scene = game_run_level;
 		break;
 
@@ -115,7 +133,7 @@ void game_level_init(const uint8_t level[])
 
 			if (block == E_PLAYER)
 			{
-				player = create_player(x, y);
+				player = entities_create_player(x, y);
 				return;
 			}
 
@@ -126,10 +144,8 @@ void game_level_init(const uint8_t level[])
 
 uint8_t game_level_get_block(const uint8_t level[], uint8_t x, uint8_t y)
 {
-	if (x < 0 || x >= LEVEL_WIDTH || y < 0 || y >= LEVEL_HEIGHT)
-	{
+	if ((x < 0) || (x >= LEVEL_WIDTH) || (y < 0) || (y >= LEVEL_HEIGHT))
 		return E_FLOOR;
-	}
 
 	// y is read in inverse order
 	return level[(((LEVEL_HEIGHT - 1 - y) * LEVEL_WIDTH + x) / 2)] >>
@@ -170,17 +186,17 @@ void game_spawn_entity(uint8_t type, uint8_t x, uint8_t y)
 	switch (type)
 	{
 	case E_ENEMY:
-		entity[num_entities] = create_enemy(x, y);
+		entity[num_entities] = entities_create_enemy(x, y);
 		num_entities++;
 		break;
 
 	case E_KEY:
-		entity[num_entities] = create_key(x, y);
+		entity[num_entities] = entities_create_key(x, y);
 		num_entities++;
 		break;
 
 	case E_MEDIKIT:
-		entity[num_entities] = create_medikit(x, y);
+		entity[num_entities] = entities_create_medikit(x, y);
 		num_entities++;
 		break;
 	}
@@ -193,8 +209,8 @@ void game_spawn_fireball(float x, float y)
 		return;
 
 	UID uid = create_uid(E_FIREBALL, x, y);
-	// Remove if already exists, don't throw anything. Not the best, but shouldn't
-	// happen too often
+	// Remove if already exists, don't throw anything. Not the best,
+	// but shouldn't happen too often
 	if (game_is_entity_spawned(uid))
 		return;
 
@@ -203,7 +219,7 @@ void game_spawn_fireball(float x, float y)
 										PI * FIREBALL_ANGLES;
 	if (dir < 0)
 		dir += FIREBALL_ANGLES * 2;
-	entity[num_entities] = create_fireball(x, y, dir);
+	entity[num_entities] = entities_create_fireball(x, y, dir);
 	num_entities++;
 }
 
@@ -250,12 +266,12 @@ void game_remove_static_entity(UID uid)
 	}
 }
 
-UID game_detect_collision(const uint8_t level[], Coords *pos, float relative_x,
-					float relative_y, bool only_walls)
+UID game_detect_collision(const uint8_t level[], Coords *pos, float rel_x,
+						  float rel_y, bool only_walls)
 {
 	// Wall collision
-	uint8_t round_x = (int)(pos->x + relative_x);
-	uint8_t round_y = (int)(pos->y + relative_y);
+	uint8_t round_x = (int)(pos->x + rel_x);
+	uint8_t round_y = (int)(pos->y + rel_y);
 	uint8_t block = game_level_get_block(level, round_x, round_y);
 
 	if (block == E_WALL)
@@ -287,8 +303,8 @@ UID game_detect_collision(const uint8_t level[], Coords *pos, float relative_x,
 			continue;
 		}
 
-		Coords new_coords = {entity[i].pos.x - relative_x,
-							 entity[i].pos.y - relative_y};
+		Coords new_coords = {entity[i].pos.x - rel_x,
+							 entity[i].pos.y - rel_y};
 		uint8_t distance = coords_distance(pos, &new_coords);
 
 		// Check distance and if it's getting closer
@@ -309,18 +325,18 @@ void game_fire_shootgun(void)
 	for (uint8_t i = 0; i < num_entities; i++)
 	{
 		// Shoot only ALIVE enemies
-		if (uid_get_type(entity[i].uid) != E_ENEMY || entity[i].state == S_DEAD ||
-			entity[i].state == S_HIDDEN)
-		{
+		if ((uid_get_type(entity[i].uid) != E_ENEMY) ||
+			(entity[i].state == S_DEAD) ||
+			(entity[i].state == S_HIDDEN))
 			continue;
-		}
 
 		Coords transform = game_translate_into_view(&(entity[i].pos));
-		if (fabsf(transform.x) < 20 && transform.y > 0)
+		if ((fabsf(transform.x) < 20.0f) && (transform.y > 0.0f))
 		{
-			uint8_t damage = (float)MIN(
+			uint8_t damage = MIN(
 				GUN_MAX_DAMAGE,
-				GUN_MAX_DAMAGE / (fabsf(transform.x) * entity[i].distance) / 5);
+				GUN_MAX_DAMAGE / (fabsf(transform.x) * entity[i].distance) /
+					5.0f);
 			if (damage > 0)
 			{
 				entity[i].health = MAX(0, entity[i].health - damage);
@@ -332,16 +348,16 @@ void game_fire_shootgun(void)
 }
 
 // Update coords if possible. Return the collided uid, if any
-UID game_update_position(const uint8_t level[], Coords *pos, float relative_x,
-				   float relative_y, bool only_walls)
+UID game_update_position(const uint8_t level[], Coords *pos, float rel_x,
+						 float rel_y, bool only_walls)
 {
-	UID collide_x = game_detect_collision(level, pos, relative_x, 0, only_walls);
-	UID collide_y = game_detect_collision(level, pos, 0, relative_y, only_walls);
+	UID collide_x = game_detect_collision(level, pos, rel_x, 0, only_walls);
+	UID collide_y = game_detect_collision(level, pos, 0, rel_y, only_walls);
 
 	if (!collide_x)
-		pos->x += relative_x;
+		pos->x += rel_x;
 	if (!collide_y)
-		pos->y += relative_y;
+		pos->y += rel_y;
 
 	return collide_x || collide_y || UID_null;
 }
@@ -423,7 +439,9 @@ void game_update_entities(const uint8_t level[])
 						if (entity[i].timer == 0)
 						{
 							// Throw a fireball
-							game_spawn_fireball(entity[i].pos.x, entity[i].pos.y);
+							game_spawn_fireball(
+								entity[i].pos.x,
+								entity[i].pos.y);
 							entity[i].state = S_FIRING;
 							entity[i].timer = 6;
 						}
@@ -432,8 +450,10 @@ void game_update_entities(const uint8_t level[])
 							// move towards to the player.
 							game_update_position(
 								level, &(entity[i].pos),
-								SIGN(player.pos.x, entity[i].pos.x) * ENEMY_SPEED * delta,
-								SIGN(player.pos.y, entity[i].pos.y) * ENEMY_SPEED * delta,
+								SIGN(player.pos.x, entity[i].pos.x) *
+									ENEMY_SPEED * delta,
+								SIGN(player.pos.y, entity[i].pos.y) *
+									ENEMY_SPEED * delta,
 								true);
 						}
 					}
@@ -449,7 +469,8 @@ void game_update_entities(const uint8_t level[])
 					else if (entity[i].timer == 0)
 					{
 						// Melee attack
-						player.health = MAX(0, player.health - ENEMY_MELEE_DAMAGE);
+						player.health = MAX(
+							0, player.health - ENEMY_MELEE_DAMAGE);
 						entity[i].timer = 14;
 						flash_screen = 1;
 						game_render_hud();
@@ -622,14 +643,16 @@ void game_render_map(const uint8_t level[], float view_height)
 		if (hit)
 		{
 			float distance;
-
 			if (!side)
-				distance = MAX(1, (map_x - player.pos.x + (1 - step_x) / 2) / ray_x);
+				distance = MAX(
+					1, (map_x - player.pos.x + (1 - step_x) / 2) / ray_x);
 			else
-				distance = MAX(1, (map_y - player.pos.y + (1 - step_y) / 2) / ray_y);
+				distance = MAX(
+					1, (map_y - player.pos.y + (1 - step_y) / 2) / ray_y);
 
 			// store zbuffer value for the column
-			zbuffer[x / Z_RES_DIVIDER] = MIN(distance * DISTANCE_MULTIPLIER, 255);
+			zbuffer[x / Z_RES_DIVIDER] = MIN(
+				distance * DISTANCE_MULTIPLIER, 0xff);
 
 			// rendered line height
 			uint8_t line_height = RENDER_HEIGHT / distance;
@@ -639,7 +662,7 @@ void game_render_map(const uint8_t level[], float view_height)
 				view_height / distance - line_height / 2 + RENDER_HEIGHT / 2,
 				view_height / distance + line_height / 2 + RENDER_HEIGHT / 2,
 				GRADIENT_COUNT -
-					(int)(distance / MAX_RENDER_DEPTH * GRADIENT_COUNT) - side * 2);
+					(distance / MAX_RENDER_DEPTH * GRADIENT_COUNT) - side * 2);
 		}
 	}
 }
@@ -649,14 +672,15 @@ uint8_t game_sort_entities()
 {
 	uint8_t gap = num_entities;
 	bool swapped = false;
-	while (gap > 1 || swapped)
+	while ((gap > 1) || (swapped))
 	{
 		// shrink factor 1.3
 		gap = (gap * 10) / 13;
-		if (gap == 9 || gap == 10)
+		if ((gap == 9) || (gap == 10))
 			gap = 11;
 		if (gap < 1)
 			gap = 1;
+
 		swapped = false;
 		for (uint8_t i = 0; i < num_entities - gap; i++)
 		{
@@ -699,23 +723,20 @@ void game_render_entities(float view_height)
 		Coords transform = game_translate_into_view(&(entity[i].pos));
 
 		// don´t render if behind the player or too far away
-		if (transform.y <= 0.1 || transform.y > MAX_SPRITE_DEPTH)
-		{
+		if ((transform.y <= 0.1f) || (transform.y > MAX_SPRITE_DEPTH))
 			continue;
-		}
 
-		int16_t sprite_screen_x = HALF_WIDTH * (1.0 + transform.x / transform.y);
+		int16_t sprite_screen_x = HALF_WIDTH *
+								  (1.0 + transform.x / transform.y);
 		int8_t sprite_screen_y = RENDER_HEIGHT / 2 + view_height / transform.y;
 		uint8_t type = uid_get_type(entity[i].uid);
 
 		// don´t try to render if outside of screen
-		// doing this pre-shortcut due int16 -> int8 conversion makes out-of-screen
-		// values fit into the screen space
-		if (sprite_screen_x < -HALF_WIDTH ||
-			sprite_screen_x > SCREEN_WIDTH + HALF_WIDTH)
-		{
+		// doing this pre-shortcut due int16 -> int8 conversion 
+		// makes out-of-screen values fit into the screen space
+		if ((sprite_screen_x < -HALF_WIDTH) ||
+			(sprite_screen_x > SCREEN_WIDTH + HALF_WIDTH))
 			continue;
-		}
 
 		switch (type)
 		{
@@ -723,67 +744,68 @@ void game_render_entities(float view_height)
 		{
 			uint8_t sprite;
 			if (entity[i].state == S_ALERT)
-			{
-				// walking
-				sprite = (millis() / 500) % 2;
-			}
+				sprite = (millis() / 500) % 2; // walking
 			else if (entity[i].state == S_FIRING)
-			{
-				// fireball
-				sprite = 2;
-			}
+				sprite = 2; // fireball
 			else if (entity[i].state == S_HIT)
-			{
-				// hit
-				sprite = 3;
-			}
+				sprite = 3; // hit
 			else if (entity[i].state == S_MELEE)
-			{
-				// melee atack
-				sprite = entity[i].timer > 10 ? 2 : 1;
-			}
+				sprite = entity[i].timer > 10 ? 2 : 1; // melee atack
 			else if (entity[i].state == S_DEAD)
-			{
-				// dying
-				sprite = entity[i].timer > 0 ? 3 : 4;
-			}
+				sprite = entity[i].timer > 0 ? 3 : 4; // dying
 			else
-			{
-				// stand
-				sprite = 0;
-			}
+				sprite = 0; // stand
 
-			display_draw_sprite(sprite_screen_x - BMP_IMP_WIDTH * .5 / transform.y,
-								sprite_screen_y - 8 / transform.y, bmp_imp_bits,
-								bmp_imp_mask, BMP_IMP_WIDTH, BMP_IMP_HEIGHT, sprite,
-								transform.y);
+			display_draw_sprite(
+				sprite_screen_x - BMP_IMP_WIDTH * 0.5f / transform.y,
+				sprite_screen_y - 8 / transform.y, bmp_imp_bits,
+				bmp_imp_mask,
+				BMP_IMP_WIDTH,
+				BMP_IMP_HEIGHT,
+				sprite,
+				transform.y);
 			break;
 		}
 
 		case E_FIREBALL:
 		{
-			display_draw_sprite(sprite_screen_x - BMP_FIREBALL_WIDTH / 2 / transform.y,
-								sprite_screen_y - BMP_FIREBALL_HEIGHT / 2 / transform.y,
-								bmp_fireball_bits, bmp_fireball_mask, BMP_FIREBALL_WIDTH,
-								BMP_FIREBALL_HEIGHT, 0, transform.y);
+			display_draw_sprite(
+				sprite_screen_x - BMP_FIREBALL_WIDTH / 2 / transform.y,
+				sprite_screen_y - BMP_FIREBALL_HEIGHT / 2 / transform.y,
+				bmp_fireball_bits,
+				bmp_fireball_mask,
+				BMP_FIREBALL_WIDTH,
+				BMP_FIREBALL_HEIGHT,
+				0,
+				transform.y);
 			break;
 		}
 
 		case E_MEDIKIT:
 		{
-			display_draw_sprite(sprite_screen_x - BMP_ITEMS_WIDTH / 2 / transform.y,
-								sprite_screen_y + 5 / transform.y, bmp_items_bits,
-								bmp_items_mask, BMP_ITEMS_WIDTH, BMP_ITEMS_HEIGHT, 0,
-								transform.y);
+			display_draw_sprite(
+				sprite_screen_x - BMP_ITEMS_WIDTH / 2 / transform.y,
+				sprite_screen_y + 5 / transform.y,
+				bmp_items_bits,
+				bmp_items_mask,
+				BMP_ITEMS_WIDTH,
+				BMP_ITEMS_HEIGHT,
+				0,
+				transform.y);
 			break;
 		}
 
 		case E_KEY:
 		{
-			display_draw_sprite(sprite_screen_x - BMP_ITEMS_WIDTH / 2 / transform.y,
-								sprite_screen_y + 5 / transform.y, bmp_items_bits,
-								bmp_items_mask, BMP_ITEMS_WIDTH, BMP_ITEMS_HEIGHT, 1,
-								transform.y);
+			display_draw_sprite(
+				sprite_screen_x - BMP_ITEMS_WIDTH / 2 / transform.y,
+				sprite_screen_y + 5 / transform.y,
+				bmp_items_bits,
+				bmp_items_mask,
+				BMP_ITEMS_WIDTH,
+				BMP_ITEMS_HEIGHT,
+				1,
+				transform.y);
 			break;
 		}
 		}
@@ -793,9 +815,9 @@ void game_render_entities(float view_height)
 void game_render_gun(uint8_t gun_pos, float amount_jogging)
 {
 	// jogging
-	char x = 48 + sinf(millis() * JOGGING_SPEED) * 10 * amount_jogging;
-	char y = RENDER_HEIGHT - gun_pos +
-			 fabsf(cosf(millis() * JOGGING_SPEED)) * 8 * amount_jogging;
+	uint8_t x = 48 + sinf(millis() * JOGGING_SPEED) * 10 * amount_jogging;
+	uint8_t y = RENDER_HEIGHT - gun_pos +
+				fabsf(cosf(millis() * JOGGING_SPEED)) * 8 * amount_jogging;
 
 	if (gun_pos > GUN_SHOT_POS - 2)
 	{
@@ -818,7 +840,7 @@ void game_render_gun(uint8_t gun_pos, float amount_jogging)
 }
 
 // Only needed first time
-void game_render_hud_symbols()
+void game_render_hud_symbols(void)
 {
 	display_draw_text(2, 58, "{}", false);	// Health symbol
 	display_draw_text(40, 58, "[]", false); // Keys symbol
@@ -826,7 +848,7 @@ void game_render_hud_symbols()
 }
 
 // Render values for the HUD
-void game_render_hud()
+void game_render_hud(void)
 {
 	display_draw_rect(12, 58, 15, 6, false);
 	display_draw_rect(50, 58, 5, 6, false);
@@ -836,16 +858,15 @@ void game_render_hud()
 }
 
 // Debug stats
-void game_render_stats()
+void game_render_stats(void)
 {
 	display_draw_rect(58, 58, 70, 6, false);
-	display_draw_int(114, 58, (int)(getActualFps()));
+	display_draw_int(114, 58, (uint8_t)(getActualFps()));
 	display_draw_int(82, 58, num_entities);
-	// display_draw_text(94, 58, freeMemory());
 }
 
 // Intro screen
-void game_run_intro()
+void game_run_intro(void)
 {
 	display_draw_bitmap(
 		(SCREEN_WIDTH - BMP_LOGO_WIDTH) / 2,
@@ -857,7 +878,7 @@ void game_run_intro()
 
 	display_draw_text(
 		SCREEN_WIDTH / 2 - 25,
-		SCREEN_HEIGHT * .8,
+		SCREEN_HEIGHT * 0.8f,
 		"PRESS FIRE",
 		true);
 
@@ -865,9 +886,9 @@ void game_run_intro()
 		game_jump_to_scene(GAME_PLAY);
 }
 
-void game_run_level()
+void game_run_level(void)
 {
-	memset(display_buf, 0x00, DISPLAY_BUF_SIZE);
+	display_draw_rect(0, 0, SCREEN_WIDTH, RENDER_HEIGHT, false);
 
 	// If the player is alive
 	if (player.health > 0)
@@ -875,17 +896,17 @@ void game_run_level()
 		// Player speed
 		if (input_up())
 		{
-			player.velocity += (MOV_SPEED - player.velocity) * .4;
+			player.velocity += (MOV_SPEED - player.velocity) * 0.4f;
 			jogging = fabsf(player.velocity) * MOV_SPEED_INV;
 		}
 		else if (input_down())
 		{
-			player.velocity += (-MOV_SPEED - player.velocity) * .4;
+			player.velocity += (-MOV_SPEED - player.velocity) * 0.4f;
 			jogging = fabsf(player.velocity) * MOV_SPEED_INV;
 		}
 		else
 		{
-			player.velocity *= .5;
+			player.velocity *= 0.5f;
 			jogging = fabsf(player.velocity) * MOV_SPEED_INV;
 		}
 
@@ -894,34 +915,34 @@ void game_run_level()
 		{
 			rot_speed = ROT_SPEED * delta;
 			old_dir_x = player.dir.x;
-			player.dir.x =
-				player.dir.x * cosf(-rot_speed) - player.dir.y * sinf(-rot_speed);
-			player.dir.y =
-				old_dir_x * sinf(-rot_speed) + player.dir.y * cosf(-rot_speed);
+			player.dir.x = player.dir.x * cosf(-rot_speed) -
+						   player.dir.y * sinf(-rot_speed);
+			player.dir.y = old_dir_x * sinf(-rot_speed) +
+						   player.dir.y * cosf(-rot_speed);
 			old_plane_x = player.plane.x;
-			player.plane.x =
-				player.plane.x * cosf(-rot_speed) - player.plane.y * sinf(-rot_speed);
-			player.plane.y =
-				old_plane_x * sinf(-rot_speed) + player.plane.y * cosf(-rot_speed);
+			player.plane.x = player.plane.x * cosf(-rot_speed) -
+							 player.plane.y * sinf(-rot_speed);
+			player.plane.y = old_plane_x * sinf(-rot_speed) +
+							 player.plane.y * cosf(-rot_speed);
 		}
 		else if (input_left())
 		{
 			rot_speed = ROT_SPEED * delta;
 			old_dir_x = player.dir.x;
-			player.dir.x =
-				player.dir.x * cosf(rot_speed) - player.dir.y * sinf(rot_speed);
-			player.dir.y =
-				old_dir_x * sinf(rot_speed) + player.dir.y * cosf(rot_speed);
+			player.dir.x = player.dir.x * cosf(rot_speed) -
+						   player.dir.y * sinf(rot_speed);
+			player.dir.y = old_dir_x * sinf(rot_speed) +
+						   player.dir.y * cosf(rot_speed);
 			old_plane_x = player.plane.x;
-			player.plane.x =
-				player.plane.x * cosf(rot_speed) - player.plane.y * sinf(rot_speed);
-			player.plane.y =
-				old_plane_x * sinf(rot_speed) + player.plane.y * cosf(rot_speed);
+			player.plane.x = player.plane.x * cosf(rot_speed) -
+							 player.plane.y * sinf(rot_speed);
+			player.plane.y = old_plane_x * sinf(rot_speed) +
+							 player.plane.y * cosf(rot_speed);
 		}
 
-		view_height = fabsf(sinf(millis() * JOGGING_SPEED)) * 6 * jogging;
+		view_height = fabsf(sinf(millis() * JOGGING_SPEED)) * 6.0f * jogging;
 
-		if (view_height > 5.9)
+		if (view_height > 5.9f)
 		{
 			if (sound == false)
 			{
@@ -964,7 +985,7 @@ void game_run_level()
 	else
 	{
 		// The player is dead
-		if (view_height > -10)
+		if (view_height > -10.0f)
 			view_height--;
 		else if (input_fire())
 			game_jump_to_scene(GAME_EXIT);
@@ -974,23 +995,23 @@ void game_run_level()
 	}
 
 	// Player movement
-	if (fabsf(player.velocity) > 0.003)
+	if (fabsf(player.velocity) > 0.003f)
 	{
 		game_update_position(
-			sto_level_1,
+			level_1,
 			&(player.pos),
 			player.dir.x * player.velocity * delta,
 			player.dir.y * player.velocity * delta,
 			false);
 	}
 	else
-		player.velocity = 0;
+		player.velocity = 0.0f;
 
 	// Update things
-	game_update_entities(sto_level_1);
+	game_update_entities(level_1);
 
 	// Render stuff
-	game_render_map(sto_level_1, view_height);
+	game_render_map(level_1, view_height);
 	game_render_entities(view_height);
 	game_render_gun(gun_pos, jogging);
 
@@ -1058,3 +1079,5 @@ void main(void)
 		EndDrawing();
 	}
 }
+
+/* -------------------------------------------------------------------------- */
