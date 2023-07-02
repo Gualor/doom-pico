@@ -469,7 +469,6 @@ void game_update_entities(const uint8_t level[])
 							0, player.health - ENEMY_MELEE_DAMAGE);
 						entity[i].timer = 14;
 						flash_screen = 1;
-						game_render_hud();
 					}
 				}
 				else
@@ -488,7 +487,6 @@ void game_update_entities(const uint8_t level[])
 				// Hit the player and disappear
 				player.health = MAX(0, player.health - ENEMY_FIREBALL_DAMAGE);
 				flash_screen = 1;
-				game_render_hud();
 				game_remove_entity(entity[i].uid);
 				continue; // continue in the loop
 			}
@@ -521,7 +519,6 @@ void game_update_entities(const uint8_t level[])
 				sound_play(medkit_snd, MEDKIT_SND_LEN);
 				entity[i].state = S_HIDDEN;
 				player.health = MIN(100, player.health + 50);
-				game_render_hud();
 				flash_screen = 1;
 			}
 			break;
@@ -535,7 +532,6 @@ void game_update_entities(const uint8_t level[])
 				sound_play(get_key_snd, GET_KEY_SND_LEN);
 				entity[i].state = S_HIDDEN;
 				player.keys++;
-				game_render_hud();
 				flash_screen = 1;
 			}
 			break;
@@ -664,7 +660,7 @@ void game_render_map(const uint8_t level[], float view_height)
 }
 
 // Sort entities from far to close
-uint8_t game_sort_entities()
+uint8_t game_sort_entities(void)
 {
 	uint8_t gap = num_entities;
 	bool swapped = false;
@@ -728,7 +724,7 @@ void game_render_entities(float view_height)
 		uint8_t type = entities_get_type(entity[i].uid);
 
 		// don´t try to render if outside of screen
-		// doing this pre-shortcut due int16 -> int8 conversion 
+		// doing this pre-shortcut due int16 -> int8 conversion
 		// makes out-of-screen values fit into the screen space
 		if ((sprite_screen_x < -HALF_WIDTH) ||
 			(sprite_screen_x > SCREEN_WIDTH + HALF_WIDTH))
@@ -884,7 +880,7 @@ void game_run_intro(void)
 
 void game_run_level(void)
 {
-	display_draw_rect(0, 0, SCREEN_WIDTH, RENDER_HEIGHT, false);
+	display_draw_rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, false);
 
 	// If the player is alive
 	if (player.health > 0)
@@ -1016,18 +1012,19 @@ void game_run_level(void)
 	{
 		display_fade(fade, false);
 		fade--;
-
-		// Only draw the hud after fade in effect
-		if (fade == 0)
-			game_render_hud_symbols();
 	}
 	else
+	{
+		// Only draw the hud after fade in effect
+		game_render_hud_symbols();
+		game_render_hud();
 		game_render_stats();
+	}
 
 	// flash screen
 	if (flash_screen > 0)
 	{
-		invert_screen = !invert_screen;
+		invert_screen = ~invert_screen;
 		flash_screen--;
 	}
 	else if (invert_screen)
