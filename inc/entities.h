@@ -8,21 +8,30 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "types.h"
+#include "coords.h"
 
 /* Definitions -------------------------------------------------------------- */
 
-// Shortcuts
-#define entities_create_enemy(x, y) \
-	entities_create_entity(E_ENEMY, x, y, S_STAND, 100)
-#define entities_create_medikit(x, y) \
-	entities_create_entity(E_MEDIKIT, x, y, S_STAND, 0)
-#define entities_create_key(x, y) \
-	entities_create_entity(E_KEY, x, y, S_STAND, 0)
-#define entities_create_fireball(x, y, dir) \
-	entities_create_entity(E_FIREBALL, x, y, S_STAND, dir)
+#define UID_NULL 0
 
 /* Data types --------------------------------------------------------------- */
+
+typedef uint16_t UID;
+typedef uint8_t EType;
+
+typedef enum
+{
+	E_FLOOR = 0x0,		// . (also null)
+	E_WALL = 0xF,		// #
+	E_PLAYER = 0x1,		// P
+	E_ENEMY = 0x2,		// E
+	E_DOOR = 0x4,		// D
+	E_LOCKEDDOOR = 0x5, // L
+	E_EXIT = 0x7,		// X
+	E_MEDKIT = 0x8,		// M
+	E_KEY = 0x9,		// K
+	E_FIREBALL = 0xA,	// not in map
+} EntityType;
 
 typedef enum
 {
@@ -67,10 +76,65 @@ typedef struct
 
 /* Function prototypes ------------------------------------------------------ */
 
-Player entities_create_player(uint8_t x, uint8_t y);
-Entity entities_create_entity(uint8_t type, uint8_t x, uint8_t y, uint8_t state,
-							  uint8_t health);
-StaticEntity entities_create_static(UID uid, uint8_t x, uint8_t y, bool active);
+UID entities_get_uid(EType type, uint8_t x, uint8_t y);
+EType entities_get_type(UID uid);
+
+/* Function definitions ----------------------------------------------------- */
+
+static inline Player entities_create_player(uint8_t x, uint8_t y)
+{
+	return (Player){
+		.pos = {x + 0.5f, y + 0.5},
+		.dir = {1.0f, 0.0f},
+		.plane = {0.0f, -0.66f},
+		.velocity = 0.0f,
+		.health = 100,
+		.keys = 0};
+}
+
+static inline Entity entities_create_enemy(uint8_t x, uint8_t y)
+{
+	return (Entity){
+		.uid = entities_get_uid(E_ENEMY, x, y),
+		.pos = {x + 0.5f, y + 0.5f},
+		.state = S_STAND,
+		.health = 100,
+		.distance = 0,
+		.timer = 0};
+}
+
+static inline Entity entities_create_medkit(uint8_t x, uint8_t y)
+{
+	return (Entity){
+		.uid = entities_get_uid(E_MEDKIT, x, y),
+		.pos = {x + 0.5f, y + 0.5f},
+		.state = S_STAND,
+		.health = 100,
+		.distance = 0,
+		.timer = 0};
+}
+
+static inline Entity entities_create_key(uint8_t x, uint8_t y)
+{
+	return (Entity){
+		.uid = entities_get_uid(E_KEY, x, y),
+		.pos = {x + 0.5f, y + 0.5f},
+		.state = S_STAND,
+		.health = 100,
+		.distance = 0,
+		.timer = 0};
+}
+
+static inline Entity entities_create_fireball(uint8_t x, uint8_t y, uint8_t dir)
+{
+	return (Entity){
+		.uid = entities_get_uid(E_KEY, x, y),
+		.pos = {x + 0.5f, y + 0.5f},
+		.state = S_STAND,
+		.health = dir,
+		.distance = 0,
+		.timer = 0};
+}
 
 #endif /* ENTITIES_H */
 

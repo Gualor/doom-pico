@@ -13,7 +13,7 @@
 #include "level.h"
 #include "sound.h"
 #include "sprites.h"
-#include "types.h"
+#include "coords.h"
 
 #include "platform.h"
 #include "utils.h"
@@ -61,21 +61,18 @@ void game_run_exit(void);
 
 /* Global variables --------------------------------------------------------- */
 
-// general
-static void (*game_run_scene)(void) = game_run_intro;
-static bool exit_scene = false;
+/* Graphics */
 static bool invert_screen = false;
 static uint8_t flash_screen = 0;
 
-// game
-// player and entities
+/* Entities */
 static Player player;
 static Entity entity[MAX_ENTITIES];
 static StaticEntity static_entity[MAX_STATIC_ENTITIES];
 static uint8_t num_entities = 0;
 static uint8_t num_static_entities = 0;
 
-// level
+/* Gameplay */
 static bool gun_fired = false;
 static bool walkSoundToggle = false;
 static uint8_t gun_pos = 0;
@@ -85,6 +82,9 @@ static float old_plane_x;
 static float view_height;
 static float jogging;
 static uint8_t fade = 0; // GRADIENT_COUNT - 1;
+
+/* Scenes */
+static void (*game_run_scene)(void) = game_run_intro;
 
 /* Function definitions ----------------------------------------------------- */
 
@@ -195,8 +195,8 @@ void game_spawn_entity(uint8_t type, uint8_t x, uint8_t y)
 		num_entities++;
 		break;
 
-	case E_MEDIKIT:
-		entity[num_entities] = entities_create_medikit(x, y);
+	case E_MEDKIT:
+		entity[num_entities] = entities_create_medkit(x, y);
 		num_entities++;
 		break;
 	}
@@ -208,7 +208,7 @@ void game_spawn_fireball(float x, float y)
 	if (num_entities >= MAX_ENTITIES)
 		return;
 
-	UID uid = create_uid(E_FIREBALL, x, y);
+	UID uid = entities_get_uid(E_FIREBALL, x, y);
 	// Remove if already exists, don't throw anything. Not the best,
 	// but shouldn't happen too often
 	if (game_is_entity_spawned(uid))
@@ -277,12 +277,12 @@ UID game_detect_collision(const uint8_t level[], Coords *pos, float rel_x,
 	if (block == E_WALL)
 	{
 		sound_play(hit_wall_snd, HIT_WALL_SND_LEN);
-		return create_uid(block, round_x, round_y);
+		return entities_get_uid(block, round_x, round_y);
 	}
 
 	if (only_walls)
 	{
-		return UID_null;
+		return UID_NULL;
 	}
 
 	// Entity collision
@@ -290,22 +290,18 @@ UID game_detect_collision(const uint8_t level[], Coords *pos, float rel_x,
 	{
 		// Don't collide with itself
 		if (&(entity[i].pos) == pos)
-		{
 			continue;
-		}
 
-		uint8_t type = uid_get_type(entity[i].uid);
+		uint8_t type = entities_get_type(entity[i].uid);
 
 		// Only ALIVE enemy collision
-		if (type != E_ENEMY || entity[i].state == S_DEAD ||
-			entity[i].state == S_HIDDEN)
-		{
+		if ((type != E_ENEMY) || (entity[i].state == S_DEAD) ||
+			(entity[i].state == S_HIDDEN))
 			continue;
-		}
 
 		Coords new_coords = {entity[i].pos.x - rel_x,
 							 entity[i].pos.y - rel_y};
-		uint8_t distance = coords_distance(pos, &new_coords);
+		uint8_t distance = coords_compute_distance(pos, &new_coords);
 
 		// Check distance and if it's getting closer
 		if (distance < ENEMY_COLLIDER_DIST && distance < entity[i].distance)
@@ -314,7 +310,7 @@ UID game_detect_collision(const uint8_t level[], Coords *pos, float rel_x,
 		}
 	}
 
-	return UID_null;
+	return UID_NULL;
 }
 
 // Shoot
@@ -325,7 +321,7 @@ void game_fire_shootgun(void)
 	for (uint8_t i = 0; i < num_entities; i++)
 	{
 		// Shoot only ALIVE enemies
-		if ((uid_get_type(entity[i].uid) != E_ENEMY) ||
+		if ((entities_get_type(entity[i].uid) != E_ENEMY) ||
 			(entity[i].state == S_DEAD) ||
 			(entity[i].state == S_HIDDEN))
 			continue;
@@ -359,7 +355,7 @@ UID game_update_position(const uint8_t level[], Coords *pos, float rel_x,
 	if (!collide_y)
 		pos->y += rel_y;
 
-	return collide_x || collide_y || UID_null;
+	return collide_x || collide_y || UID_NULL;
 }
 
 void game_update_entities(const uint8_t level[])
@@ -368,7 +364,7 @@ void game_update_entities(const uint8_t level[])
 	while (i < num_entities)
 	{
 		// update distance
-		entity[i].distance = coords_distance(&(player.pos), &(entity[i].pos));
+		entity[i].distance = coords_compute_distance(&(player.pos), &(entity[i].pos));
 
 		// Run the timer. Works with actual frames.
 		// Todo: use delta here. But needs float type and more memory
@@ -390,7 +386,7 @@ void game_update_entities(const uint8_t level[])
 			continue;
 		}
 
-		uint8_t type = uid_get_type(entity[i].uid);
+		uint8_t type = entities_get_type(entity[i].uid);
 
 		switch (type)
 		{
@@ -517,7 +513,7 @@ void game_update_entities(const uint8_t level[])
 			break;
 		}
 
-		case E_MEDIKIT:
+		case E_MEDKIT:
 		{
 			if (entity[i].distance < ITEM_COLLIDER_DIST)
 			{
@@ -624,10 +620,10 @@ void game_render_map(const uint8_t level[], float view_height)
 				if ((block == E_ENEMY) || (block & 0b00001000))
 				{
 					// Check that it's close to the player
-					if (coords_distance(&(player.pos), &map_coords) <
+					if (coords_compute_distance(&(player.pos), &map_coords) <
 						MAX_ENTITY_DISTANCE)
 					{
-						UID uid = create_uid(block, map_x, map_y);
+						UID uid = entities_get_uid(block, map_x, map_y);
 						if (last_uid != uid && !game_is_entity_spawned(uid))
 						{
 							game_spawn_entity(block, map_x, map_y);
@@ -729,7 +725,7 @@ void game_render_entities(float view_height)
 		int16_t sprite_screen_x = HALF_WIDTH *
 								  (1.0 + transform.x / transform.y);
 		int8_t sprite_screen_y = RENDER_HEIGHT / 2 + view_height / transform.y;
-		uint8_t type = uid_get_type(entity[i].uid);
+		uint8_t type = entities_get_type(entity[i].uid);
 
 		// don´t try to render if outside of screen
 		// doing this pre-shortcut due int16 -> int8 conversion 
@@ -781,7 +777,7 @@ void game_render_entities(float view_height)
 			break;
 		}
 
-		case E_MEDIKIT:
+		case E_MEDKIT:
 		{
 			display_draw_sprite(
 				sprite_screen_x - BMP_ITEMS_WIDTH / 2 / transform.y,
