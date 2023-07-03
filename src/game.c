@@ -1,5 +1,6 @@
 /* Includes ----------------------------------------------------------------- */
 
+#include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
@@ -21,7 +22,6 @@
 /** TODO: Remove raylib dependencies from here */
 #include "raylib.h"
 
-/** TODO: stop game when dying */
 /** TODO: fix fade out when going back to intro scene */
 /** TODO: add options to enlarge screen */
 /** TODO: check screen boundaries by using larger types (e.g., int16_t) */
@@ -42,12 +42,12 @@ typedef enum
 
 /* Level */
 void game_level_init(const uint8_t level[]);
-uint8_t game_level_get_block(const uint8_t level[], uint8_t x, uint8_t y);
+EntityType game_level_get_block(const uint8_t level[], uint8_t x, uint8_t y);
 
 /* Entities */
 bool game_is_entity_spawned(EntityUID uid);
 bool game_is_static_entity_spawned(EntityUID uid);
-void game_spawn_entity(uint8_t type, uint8_t x, uint8_t y);
+void game_spawn_entity(EntityType type, uint8_t x, uint8_t y);
 void game_spawn_fireball(float x, float y);
 void game_remove_entity(EntityUID uid);
 void game_remove_static_entity(EntityUID uid);
@@ -56,9 +56,9 @@ void game_sort_entities(void);
 
 /* Game mechanics */
 EntityUID game_detect_collision(const uint8_t level[], Coords *pos, float rel_x,
-						  float rel_y, bool only_walls);
+								float rel_y, bool only_walls);
 EntityUID game_update_position(const uint8_t level[], Coords *pos, float rel_x,
-						 float rel_y, bool only_walls);
+							   float rel_y, bool only_walls);
 void game_fire_shootgun(void);
 
 /* Graphics */
@@ -157,15 +157,16 @@ void game_level_init(const uint8_t level[])
 	}
 }
 
-uint8_t game_level_get_block(const uint8_t level[], uint8_t x, uint8_t y)
+EntityType game_level_get_block(const uint8_t level[], uint8_t x, uint8_t y)
 {
 	if ((x < 0) || (x >= LEVEL_WIDTH) || (y < 0) || (y >= LEVEL_HEIGHT))
 		return E_FLOOR;
 
 	// y is read in inverse order
-	return level[(((LEVEL_HEIGHT - 1 - y) * LEVEL_WIDTH + x) / 2)] >>
-			   (!(x % 2) * 4) // displace part of wanted bits
-		   & 0b1111;		  // mask wanted bits
+	uint8_t byte = level[((LEVEL_HEIGHT - 1 - y) * LEVEL_WIDTH + x) / 2];
+	byte >>= (x % 2) ? 0 : 4;
+
+	return byte & 0x0f;
 }
 
 bool game_is_entity_spawned(EntityUID uid)
@@ -190,7 +191,7 @@ bool game_is_static_entity_spawned(EntityUID uid)
 	return false;
 }
 
-void game_spawn_entity(uint8_t type, uint8_t x, uint8_t y)
+void game_spawn_entity(EntityType type, uint8_t x, uint8_t y)
 {
 	// Limit the number of spawned entities
 	if (num_entities >= MAX_ENTITIES)
@@ -282,7 +283,7 @@ void game_remove_static_entity(EntityUID uid)
 }
 
 EntityUID game_detect_collision(const uint8_t level[], Coords *pos, float rel_x,
-						  float rel_y, bool only_walls)
+								float rel_y, bool only_walls)
 {
 	// Wall collision
 	uint8_t round_x = (int)(pos->x + rel_x);
@@ -305,10 +306,11 @@ EntityUID game_detect_collision(const uint8_t level[], Coords *pos, float rel_x,
 		if (&(entity[i].pos) == pos)
 			continue;
 
-		uint8_t type = entities_get_type(entity[i].uid);
+		EntityType type = entities_get_type(entity[i].uid);
 
 		// Only ALIVE enemy collision
-		if ((type != E_ENEMY) || (entity[i].state == S_DEAD) ||
+		if ((type != E_ENEMY) ||
+			(entity[i].state == S_DEAD) ||
 			(entity[i].state == S_HIDDEN))
 			continue;
 
@@ -317,10 +319,9 @@ EntityUID game_detect_collision(const uint8_t level[], Coords *pos, float rel_x,
 		uint8_t distance = coords_compute_distance(pos, &new_coords);
 
 		// Check distance and if it's getting closer
-		if (distance < ENEMY_COLLIDER_DIST && distance < entity[i].distance)
-		{
+		if ((distance < ENEMY_COLLIDER_DIST) &&
+			(distance < entity[i].distance))
 			return entity[i].uid;
-		}
 	}
 
 	return UID_NULL;
@@ -358,7 +359,7 @@ void game_fire_shootgun(void)
 
 // Update coords if possible. Return the collided uid, if any
 EntityUID game_update_position(const uint8_t level[], Coords *pos, float rel_x,
-						 float rel_y, bool only_walls)
+							   float rel_y, bool only_walls)
 {
 	EntityUID collide_x = game_detect_collision(level, pos, rel_x, 0, only_walls);
 	EntityUID collide_y = game_detect_collision(level, pos, 0, rel_y, only_walls);
@@ -399,7 +400,7 @@ void game_update_entities(const uint8_t level[])
 			continue;
 		}
 
-		uint8_t type = entities_get_type(entity[i].uid);
+		EntityType type = entities_get_type(entity[i].uid);
 
 		switch (type)
 		{
@@ -710,8 +711,8 @@ Coords game_translate_into_view(Coords *pos)
 		1.0 / (player.plane.x * player.dir.y - player.dir.x * player.plane.y);
 	float transform_x =
 		inv_det * (player.dir.y * sprite_x - player.dir.x * sprite_y);
-	float transform_y = inv_det * (-player.plane.y * sprite_x +
-								   player.plane.x * sprite_y); // Z in screen
+	float transform_y =
+		inv_det * (-player.plane.y * sprite_x + player.plane.x * sprite_y);
 
 	return (Coords){transform_x, transform_y};
 }
@@ -980,6 +981,17 @@ void game_run_level_scene(void)
 			// just fired and restored position
 			gun_fired = false;
 		}
+
+		// Update player
+		game_update_position(
+			level_1,
+			&(player.pos),
+			player.dir.x * player.velocity * delta,
+			player.dir.y * player.velocity * delta,
+			false);
+
+		// Update entities
+		game_update_entities(level_1);
 	}
 	else
 	{
@@ -992,22 +1004,6 @@ void game_run_level_scene(void)
 		if (gun_pos > 1)
 			gun_pos -= 2;
 	}
-
-	// Player movement
-	if (fabsf(player.velocity) > 0.003f)
-	{
-		game_update_position(
-			level_1,
-			&(player.pos),
-			player.dir.x * player.velocity * delta,
-			player.dir.y * player.velocity * delta,
-			false);
-	}
-	else
-		player.velocity = 0.0f;
-
-	// Update things
-	game_update_entities(level_1);
 
 	// Render stuff
 	game_render_map(level_1, view_height);
@@ -1067,7 +1063,11 @@ void main(void)
 		BeginDrawing();
 
 		input_update();
+
+		clock_t t0 = clock();
 		game_run_scene();
+		printf("FPS: %f\n", (float)CLOCKS_PER_SEC / (float)(clock() - t0));
+
 		display_update();
 
 		EndDrawing();
