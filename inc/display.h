@@ -16,7 +16,6 @@
 #define ZBUFFER_SIZE (SCREEN_WIDTH / Z_RES_DIVIDER)
 #define DISPLAY_BUF_SIZE (SCREEN_WIDTH * ((SCREEN_HEIGHT + 7) / 8))
 
-
 /* Function prototypes ------------------------------------------------------ */
 
 void display_init(void);
@@ -32,9 +31,10 @@ uint8_t display_get_byte(uint8_t x, uint8_t y);
 void display_draw_pixel(int8_t x, int8_t y, bool color, bool raycast);
 bool display_get_pixel(int16_t x, int16_t y);
 void display_draw_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, bool color);
-void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y, uint8_t intensity);
-void display_draw_bitmap(int16_t x, int16_t y, const uint8_t bitmap[], int16_t w,
-						 int16_t h, uint16_t color);
+void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y,
+						uint8_t intensity);
+void display_draw_bitmap(int16_t x, int16_t y, const uint8_t bitmap[],
+						 int16_t w, int16_t h, uint16_t color);
 void display_draw_sprite(int8_t x, int8_t y, const uint8_t bitmap[],
 						 const uint8_t mask[], int16_t w, int16_t h,
 						 uint8_t sprite, float distance);

@@ -21,6 +21,13 @@
 /** TODO: Remove raylib dependencies from here */
 #include "raylib.h"
 
+/** TODO: stop game when dying */
+/** TODO: fix fade out when going back to intro scene */
+/** TODO: add options to enlarge screen */
+/** TODO: check screen boundaries by using larger types (e.g., int16_t) */
+/** TODO: add sound support */
+/** TODO: add platform dependent function pointers */
+
 /* Data types --------------------------------------------------------------- */
 
 typedef enum
@@ -38,19 +45,19 @@ void game_level_init(const uint8_t level[]);
 uint8_t game_level_get_block(const uint8_t level[], uint8_t x, uint8_t y);
 
 /* Entities */
-bool game_is_entity_spawned(UID uid);
-bool game_is_static_entity_spawned(UID uid);
+bool game_is_entity_spawned(EntityUID uid);
+bool game_is_static_entity_spawned(EntityUID uid);
 void game_spawn_entity(uint8_t type, uint8_t x, uint8_t y);
 void game_spawn_fireball(float x, float y);
-void game_remove_entity(UID uid);
-void game_remove_static_entity(UID uid);
+void game_remove_entity(EntityUID uid);
+void game_remove_static_entity(EntityUID uid);
 void game_update_entities(const uint8_t level[]);
 void game_sort_entities(void);
 
 /* Game mechanics */
-UID game_detect_collision(const uint8_t level[], Coords *pos, float rel_x,
+EntityUID game_detect_collision(const uint8_t level[], Coords *pos, float rel_x,
 						  float rel_y, bool only_walls);
-UID game_update_position(const uint8_t level[], Coords *pos, float rel_x,
+EntityUID game_update_position(const uint8_t level[], Coords *pos, float rel_x,
 						 float rel_y, bool only_walls);
 void game_fire_shootgun(void);
 
@@ -161,7 +168,7 @@ uint8_t game_level_get_block(const uint8_t level[], uint8_t x, uint8_t y)
 		   & 0b1111;		  // mask wanted bits
 }
 
-bool game_is_entity_spawned(UID uid)
+bool game_is_entity_spawned(EntityUID uid)
 {
 	for (uint8_t i = 0; i < num_entities; i++)
 	{
@@ -172,7 +179,7 @@ bool game_is_entity_spawned(UID uid)
 	return false;
 }
 
-bool game_is_static_entity_spawned(UID uid)
+bool game_is_static_entity_spawned(EntityUID uid)
 {
 	for (uint8_t i = 0; i < num_static_entities; i++)
 	{
@@ -216,7 +223,7 @@ void game_spawn_fireball(float x, float y)
 	if (num_entities >= MAX_ENTITIES)
 		return;
 
-	UID uid = entities_get_uid(E_FIREBALL, x, y);
+	EntityUID uid = entities_get_uid(E_FIREBALL, x, y);
 	// Remove if already exists, don't throw anything. Not the best,
 	// but shouldn't happen too often
 	if (game_is_entity_spawned(uid))
@@ -231,7 +238,7 @@ void game_spawn_fireball(float x, float y)
 	num_entities++;
 }
 
-void game_remove_entity(UID uid)
+void game_remove_entity(EntityUID uid)
 {
 	uint8_t i = 0;
 	bool found = false;
@@ -253,7 +260,7 @@ void game_remove_entity(UID uid)
 	}
 }
 
-void game_remove_static_entity(UID uid)
+void game_remove_static_entity(EntityUID uid)
 {
 	uint8_t i = 0;
 	bool found = false;
@@ -274,7 +281,7 @@ void game_remove_static_entity(UID uid)
 	}
 }
 
-UID game_detect_collision(const uint8_t level[], Coords *pos, float rel_x,
+EntityUID game_detect_collision(const uint8_t level[], Coords *pos, float rel_x,
 						  float rel_y, bool only_walls)
 {
 	// Wall collision
@@ -289,9 +296,7 @@ UID game_detect_collision(const uint8_t level[], Coords *pos, float rel_x,
 	}
 
 	if (only_walls)
-	{
 		return UID_NULL;
-	}
 
 	// Entity collision
 	for (uint8_t i = 0; i < num_entities; i++)
@@ -352,11 +357,11 @@ void game_fire_shootgun(void)
 }
 
 // Update coords if possible. Return the collided uid, if any
-UID game_update_position(const uint8_t level[], Coords *pos, float rel_x,
+EntityUID game_update_position(const uint8_t level[], Coords *pos, float rel_x,
 						 float rel_y, bool only_walls)
 {
-	UID collide_x = game_detect_collision(level, pos, rel_x, 0, only_walls);
-	UID collide_y = game_detect_collision(level, pos, 0, rel_y, only_walls);
+	EntityUID collide_x = game_detect_collision(level, pos, rel_x, 0, only_walls);
+	EntityUID collide_y = game_detect_collision(level, pos, 0, rel_y, only_walls);
 
 	if (!collide_x)
 		pos->x += rel_x;
@@ -502,7 +507,7 @@ void game_update_entities(const uint8_t level[])
 			{
 				// Move. Only collide with walls.
 				// Note: using health to store the angle of the movement
-				UID collided = game_update_position(
+				EntityUID collided = game_update_position(
 					level, &(entity[i].pos),
 					cosf((float)entity[i].health / FIREBALL_ANGLES * PI) *
 						FIREBALL_SPEED,
@@ -553,7 +558,7 @@ void game_update_entities(const uint8_t level[])
 // The map raycaster. Based on https://lodev.org/cgtutor/raycasting.html
 void game_render_map(const uint8_t level[], float view_height)
 {
-	UID last_uid;
+	EntityUID last_uid;
 
 	for (uint8_t x = 0; x < SCREEN_WIDTH; x += RES_DIVIDER)
 	{
@@ -627,7 +632,7 @@ void game_render_map(const uint8_t level[], float view_height)
 					if (coords_compute_distance(&(player.pos), &map_coords) <
 						MAX_ENTITY_DISTANCE)
 					{
-						UID uid = entities_get_uid(block, map_x, map_y);
+						EntityUID uid = entities_get_uid(block, map_x, map_y);
 						if (last_uid != uid && !game_is_entity_spawned(uid))
 						{
 							game_spawn_entity(block, map_x, map_y);

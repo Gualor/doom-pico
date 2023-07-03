@@ -1,5 +1,9 @@
-#ifndef TYPES_H
-#define TYPES_H
+/* Header guard ------------------------------------------------------------- */
+
+#ifndef COORDS_H
+#define COORDS_H
+
+/* Data types --------------------------------------------------------------- */
 
 typedef struct
 {
@@ -7,7 +11,10 @@ typedef struct
 	float y;
 } Coords;
 
-Coords coords_create(float x, float y);
+/* Function prototypes ------------------------------------------------------ */
+
 uint8_t coords_compute_distance(Coords *a, Coords *b);
 
-#endif /* TYPES_H */
+#endif /* COORDS_H */
+
+/* -------------------------------------------------------------------------- */

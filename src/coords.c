@@ -9,11 +9,6 @@
 
 /* Function definitions ----------------------------------------------------- */
 
-Coords coords_create(float x, float y)
-{
-	return (Coords){x, y};
-}
-
 uint8_t coords_compute_distance(Coords *a, Coords *b)
 {
 	return sqrtf(POW2(a->x - b->x) + POW2(a->y - b->y)) * DISTANCE_MULTIPLIER;

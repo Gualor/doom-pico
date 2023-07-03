@@ -16,8 +16,7 @@
 
 /* Data types --------------------------------------------------------------- */
 
-typedef uint16_t UID;
-typedef uint8_t EType;
+typedef uint16_t EntityUID;
 
 typedef enum
 {
@@ -30,7 +29,7 @@ typedef enum
 	E_EXIT = 0x7,		// X
 	E_MEDKIT = 0x8,		// M
 	E_KEY = 0x9,		// K
-	E_FIREBALL = 0xA,	// not in map
+	E_FIREBALL = 0xa,	// not in map
 } EntityType;
 
 typedef enum
@@ -58,7 +57,7 @@ typedef struct
 
 typedef struct
 {
-	UID uid;
+	EntityUID uid;
 	Coords pos;
 	uint8_t state;
 	uint8_t health; // angle for fireballs
@@ -68,7 +67,7 @@ typedef struct
 
 typedef struct
 {
-	UID uid;
+	EntityUID uid;
 	uint8_t x;
 	uint8_t y;
 	bool active;
@@ -76,8 +75,8 @@ typedef struct
 
 /* Function prototypes ------------------------------------------------------ */
 
-UID entities_get_uid(EType type, uint8_t x, uint8_t y);
-EType entities_get_type(UID uid);
+EntityUID entities_get_uid(EntityType type, uint8_t x, uint8_t y);
+EntityType entities_get_type(EntityUID uid);
 
 /* Function definitions ----------------------------------------------------- */
 

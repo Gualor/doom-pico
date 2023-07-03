@@ -10,7 +10,7 @@
 
 /* Global variables --------------------------------------------------------- */
 
-bool sound = false;
+volatile bool sound = false;
 
 static uint8_t idx = 0;
 static uint16_t *snd_ptr = NULL;
