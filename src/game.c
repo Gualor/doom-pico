@@ -35,7 +35,6 @@ typedef enum
 	SCENE_INTRO,
 	SCENE_LEVEL1,
 	/* Add more levels here */
-	SCENE_EXIT
 } GameScene;
 
 /* Function prototypes ------------------------------------------------------ */
@@ -115,10 +114,6 @@ void game_jump_to_scene(GameScene scene)
 	case SCENE_LEVEL1:
 		game_level_init(level_1);
 		game_run_scene = game_run_level_scene;
-		break;
-
-	case SCENE_EXIT:
-		game_run_scene = game_run_exit_scene;
 		break;
 
 	default:
@@ -888,8 +883,6 @@ void game_run_intro_scene(void)
 
 void game_run_level_scene(void)
 {
-	display_draw_rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, false);
-
 	// If the player is alive
 	if (player.health > 0)
 	{
@@ -999,7 +992,7 @@ void game_run_level_scene(void)
 		if (view_height > -10.0f)
 			view_height--;
 		else if (input_fire())
-			game_jump_to_scene(SCENE_EXIT);
+			game_jump_to_scene(SCENE_INTRO);
 
 		if (gun_pos > 1)
 			gun_pos -= 2;
@@ -1032,19 +1025,7 @@ void game_run_level_scene(void)
 
 	// Exit routine
 	if (input_select())
-		game_jump_to_scene(SCENE_EXIT);
-}
-
-void game_run_exit_scene(void)
-{
-	// fade out effect
-	for (uint8_t i = 0; i < GRADIENT_COUNT; i++)
-	{
-		display_fade(i, false);
-		delay(40);
-	}
-
-	game_jump_to_scene(SCENE_INTRO);
+		game_jump_to_scene(SCENE_INTRO);
 }
 
 void main(void)
@@ -1063,11 +1044,8 @@ void main(void)
 		BeginDrawing();
 
 		input_update();
-
-		clock_t t0 = clock();
+		display_clear();
 		game_run_scene();
-		printf("FPS: %f\n", (float)CLOCKS_PER_SEC / (float)(clock() - t0));
-
 		display_update();
 
 		EndDrawing();
