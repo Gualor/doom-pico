@@ -15,19 +15,12 @@
 #include "sound.h"
 #include "sprites.h"
 #include "coords.h"
-
-#include "platform.h"
 #include "utils.h"
-#include "game.h"
+#include "platform.h"
 
-/** TODO: Remove raylib dependencies from here */
-#include "raylib.h"
-
-/** TODO: fix fade out when going back to intro scene */
 /** TODO: add options to enlarge screen */
 /** TODO: check screen boundaries by using larger types (e.g., int16_t) */
 /** TODO: add sound support */
-/** TODO: add platform dependent function pointers */
 
 /* Data types --------------------------------------------------------------- */
 
@@ -68,7 +61,7 @@ static void game_fire_shootgun(void);
 static Coords game_translate_into_view(Coords *pos);
 static void game_render_map(const uint8_t level[], float view_height);
 static void game_render_entities(float view_height);
-static void game_render_gun(uint8_t gun_pos, float amount_jogging);
+static void game_render_gun(uint8_t gun_pos, float jogging);
 static void game_render_hud(void);
 static void game_render_stats(void);
 
@@ -79,8 +72,9 @@ static void game_run_level_scene(void);
 
 /* Global variables --------------------------------------------------------- */
 
-/* Graphics */
+/* Gameplay */
 static bool flash_screen;
+static uint8_t fade_screen;
 
 /* Entities */
 static Player player;
@@ -89,19 +83,11 @@ static StaticEntity static_entity[MAX_STATIC_ENTITIES];
 static uint8_t num_entities;
 static uint8_t num_static_entities;
 
-/* Gameplay */
-static bool gun_fired;
-static bool walkSoundToggle;
-static uint8_t gun_pos;
-static float rot_speed;
-static float old_dir_x;
-static float old_plane_x;
-static float view_height;
-static float jogging;
-static uint8_t fade;
+/* Sound effects */
+static bool walk_sound_toggle;
 
-/* Scenes */
-static void (*game_run_scene)(void) = game_run_intro_scene;
+/* Scene */
+static void (*game_run_scene)(void);
 
 /* Function definitions ----------------------------------------------------- */
 
@@ -128,15 +114,15 @@ void game_jump_to_scene(GameScene scene)
 // Finds the player in the map
 void game_level_init(const uint8_t level[])
 {
-	gun_fired = false;
-	walkSoundToggle = false;
-	gun_pos = 0;
-	rot_speed;
-	old_dir_x;
-	old_plane_x;
-	view_height;
-	jogging;
-	fade = GRADIENT_COUNT - 1;
+	memset(entity, 0x00, sizeof(Entity) * MAX_ENTITIES);
+	memset(static_entity, 0x00, sizeof(StaticEntity) * MAX_STATIC_ENTITIES);
+	num_entities = 0;
+	num_static_entities = 0;
+
+	flash_screen = false;
+	fade_screen = GRADIENT_COUNT - 1;
+	walk_sound_toggle = false;
+	game_run_scene = game_run_intro_scene;
 
 	for (uint8_t y = LEVEL_HEIGHT - 1; y >= 0; y--)
 	{
@@ -384,7 +370,7 @@ void game_update_entities(const uint8_t level[])
 													 &(entity[i].pos));
 
 		// Run the timer. Works with actual frames.
-		// Todo: use delta here. But needs float type and more memory
+		// Todo: use delta_time here. But needs float type and more memory
 		if (entity[i].timer > 0)
 			entity[i].timer--;
 
@@ -424,7 +410,7 @@ void game_update_entities(const uint8_t level[])
 				{
 					// Back to alert state
 					entity[i].state = S_ALERT;
-					entity[i].timer = 40; // delay next fireball thrown
+					entity[i].timer = 40; // platform_delay next fireball thrown
 				}
 			}
 			else if (entity[i].state == S_FIRING)
@@ -433,7 +419,7 @@ void game_update_entities(const uint8_t level[])
 				{
 					// Back to alert state
 					entity[i].state = S_ALERT;
-					entity[i].timer = 40; // delay next fireball throwm
+					entity[i].timer = 40; // platform_delay next fireball throwm
 				}
 			}
 			else
@@ -465,9 +451,9 @@ void game_update_entities(const uint8_t level[])
 								level,
 								&(entity[i].pos),
 								SIGN(player.pos.x, entity[i].pos.x) *
-									ENEMY_SPEED * delta,
+									ENEMY_SPEED * delta_time,
 								SIGN(player.pos.y, entity[i].pos.y) *
-									ENEMY_SPEED * delta,
+									ENEMY_SPEED * delta_time,
 								true);
 						}
 					}
@@ -756,7 +742,7 @@ void game_render_entities(float view_height)
 		{
 			uint8_t sprite;
 			if (entity[i].state == S_ALERT)
-				sprite = (millis() / 500) % 2; // walking
+				sprite = (platform_utils_millis() / 500) % 2; // walking
 			else if (entity[i].state == S_FIRING)
 				sprite = 2; // fireball
 			else if (entity[i].state == S_HIT)
@@ -824,19 +810,17 @@ void game_render_entities(float view_height)
 	}
 }
 
-void game_render_gun(uint8_t gun_pos, float amount_jogging)
+void game_render_gun(uint8_t gun_pos, float jogging)
 {
 	// jogging
-	uint8_t x = 48 + sinf(millis() * JOGGING_SPEED) * 10 * amount_jogging;
+	uint8_t x = 48 + sinf(platform_utils_millis() * JOGGING_SPEED) * 10 * jogging;
 	uint8_t y = RENDER_HEIGHT - gun_pos +
-				fabsf(cosf(millis() * JOGGING_SPEED)) * 8 * amount_jogging;
+				fabsf(cosf(platform_utils_millis() * JOGGING_SPEED)) * 8 * jogging;
 
+	// Gun fire
 	if (gun_pos > GUN_SHOT_POS - 2)
-	{
-		// Gun fire
 		display_draw_bitmap(x + 6, y - 11, bmp_fire_bits, BMP_FIRE_WIDTH,
 							BMP_FIRE_HEIGHT, true);
-	}
 
 	// Don't draw over the hud!
 	uint8_t clip_height = MAX(0, MIN(y + BMP_GUN_HEIGHT, RENDER_HEIGHT) - y);
@@ -863,7 +847,7 @@ void game_render_hud(void)
 void game_render_stats(void)
 {
 	display_draw_rect(58, 58, 70, 6, false);
-	display_draw_int(114, 58, (uint8_t)(getActualFps()));
+	display_draw_int(114, 58, (uint8_t)(display_get_fps()));
 	display_draw_int(82, 58, num_entities);
 }
 
@@ -890,6 +874,14 @@ void game_run_intro_scene(void)
 
 void game_run_level_scene(void)
 {
+	static bool gun_fired;
+	static uint8_t gun_pos;
+	static float rot_speed;
+	static float old_dir_x;
+	static float old_plane_x;
+	static float view_height;
+	static float jogging;
+
 	// If the player is alive
 	if (player.health > 0)
 	{
@@ -913,7 +905,7 @@ void game_run_level_scene(void)
 		// Player rotation
 		if (input_right())
 		{
-			rot_speed = ROT_SPEED * delta;
+			rot_speed = ROT_SPEED * delta_time;
 			old_dir_x = player.dir.x;
 			player.dir.x = player.dir.x * cosf(-rot_speed) -
 						   player.dir.y * sinf(-rot_speed);
@@ -927,7 +919,7 @@ void game_run_level_scene(void)
 		}
 		else if (input_left())
 		{
-			rot_speed = ROT_SPEED * delta;
+			rot_speed = ROT_SPEED * delta_time;
 			old_dir_x = player.dir.x;
 			player.dir.x = player.dir.x * cosf(rot_speed) -
 						   player.dir.y * sinf(rot_speed);
@@ -940,21 +932,21 @@ void game_run_level_scene(void)
 							 player.plane.y * cosf(rot_speed);
 		}
 
-		view_height = fabsf(sinf(millis() * JOGGING_SPEED)) * 6.0f * jogging;
+		view_height = fabsf(sinf(platform_utils_millis() * JOGGING_SPEED)) * 6.0f * jogging;
 
 		if (view_height > 5.9f)
 		{
 			if (sound == false)
 			{
-				if (walkSoundToggle)
+				if (walk_sound_toggle)
 				{
 					sound_play(walk1_snd, WALK1_SND_LEN);
-					walkSoundToggle = false;
+					walk_sound_toggle = false;
 				}
 				else
 				{
 					sound_play(walk2_snd, WALK2_SND_LEN);
-					walkSoundToggle = true;
+					walk_sound_toggle = true;
 				}
 			}
 		}
@@ -986,8 +978,8 @@ void game_run_level_scene(void)
 		game_update_position(
 			level_1,
 			&(player.pos),
-			player.dir.x * player.velocity * delta,
-			player.dir.y * player.velocity * delta,
+			player.dir.x * player.velocity * delta_time,
+			player.dir.y * player.velocity * delta_time,
 			false);
 
 		// Update entities
@@ -1011,10 +1003,10 @@ void game_run_level_scene(void)
 	game_render_gun(gun_pos, jogging);
 
 	// Fade in effect
-	if (fade > 0)
+	if (fade_screen > 0)
 	{
-		display_fade(fade, false);
-		fade--;
+		display_fade(fade_screen, false);
+		fade_screen--;
 	}
 	else
 	{
@@ -1031,34 +1023,31 @@ void game_run_level_scene(void)
 	}
 
 	// Exit routine
-	if (input_select())
+	if (input_exit())
 		game_jump_to_scene(SCENE_INTRO);
 }
 
-void game_run(GameConfig *cfg)
+void main(void)
 {
-	InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Doom Pico");
-	SetTargetFPS(30);
-
-	game_run_scene = game_run_intro_scene;
-	init_clock = clock();
 	display_init();
-	input_setup();
 	sound_init();
+	input_init();
+	game_run_scene = game_run_intro_scene;
 
-	while(1)
+	while (!input_exit())
 	{
-		cfg->draw_start();
+		/* Start drawing */
+		display_draw_start();
 
+		/* Read user inputs */
 		input_update();
-		display_clear();
-		game_run_scene();
-		display_update();
 
-		cfg->draw_stop();
+		/* Run current game scene */
+		game_run_scene();
+
+		/* Stop drawing */
+		display_draw_stop();
 	}
 }
-
-
 
 /* -------------------------------------------------------------------------- */

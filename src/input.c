@@ -14,7 +14,7 @@ static volatile uint16_t buttons;
 
 /* Function definitions ----------------------------------------------------- */
 
-void input_setup(void)
+void input_init(void)
 {
 	buttons = 0;
 }
@@ -33,7 +33,7 @@ void input_update(void)
 		buttons = RIGHT;
 	else if (IsKeyDown(KEY_SPACE))
 		buttons = Y;
-	else if (IsKeyDown(KEY_BACKSPACE))
+	else if (IsKeyDown(KEY_ESCAPE))
 		buttons = SELECT;
 }
 
@@ -62,7 +62,7 @@ bool input_fire(void)
 	return buttons & Y;
 };
 
-bool input_select(void)
+bool input_exit(void)
 {
 	return buttons & SELECT;
 }

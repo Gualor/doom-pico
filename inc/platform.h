@@ -6,15 +6,25 @@
 /* Includes ----------------------------------------------------------------- */
 
 #include <stdint.h>
+#include <stdbool.h>
 
 /* Functions prototypes ----------------------------------------------------- */
 
-uint32_t millis(void);
-void delay(uint32_t ms);
+/* Platform screen */
+void platform_screen_init(void);
+void platform_screen_draw_start(void);
+void platform_screen_draw_stop(void);
+void platform_screen_draw_pixel(uint8_t x, uint8_t y, bool color);
 
-/* Global variables --------------------------------------------------------- */
+/* Platform audio */
+void platform_audio_init(void);
+void platform_audio_play_start(void);
+void platform_audio_play_stop(void);
 
-extern volatile uint32_t init_clock;
+/* Platform utilities */
+void platform_utils_init(void);
+uint32_t platform_utils_millis(void);
+void platform_utils_delay(uint32_t ms);
 
 #endif /* PLATFORM_H */
 

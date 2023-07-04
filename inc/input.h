@@ -27,14 +27,14 @@ typedef enum
 
 /* Function prototypes ------------------------------------------------------ */
 
-void input_setup(void);
+void input_init(void);
 void input_update(void);
 bool input_up(void);
 bool input_down(void);
 bool input_left(void);
 bool input_right(void);
 bool input_fire(void);
-bool input_select(void);
+bool input_exit(void);
 
 #endif /* INPUT_H */
 

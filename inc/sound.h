@@ -62,9 +62,7 @@ static const uint8_t medkit_snd[] = {
 void sound_init(void);
 void sound_play(const uint8_t *snd, uint8_t len);
 void sound_set_frequency(uint16_t freq);
-void sound_off(void);
-
-/* Global variables --------------------------------------------------------- */
+void sound_stop(void);
 
 extern volatile bool sound;
 

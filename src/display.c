@@ -8,13 +8,10 @@
 #include "platform.h"
 #include "utils.h"
 
-/** TODO: Remove raylib dependencies from here */
-#include "raylib.h"
-
 /* Global variables --------------------------------------------------------- */
 
-float delta = 1;
-uint32_t lastFrameTime = 0;
+float delta_time;
+uint32_t last_frame_time;
 uint8_t zbuffer[ZBUFFER_SIZE];
 uint8_t display_buf[DISPLAY_BUF_SIZE];
 
@@ -22,11 +19,13 @@ uint8_t display_buf[DISPLAY_BUF_SIZE];
 
 void display_init(void)
 {
-	delta = 1;
-	lastFrameTime = 0;
-
 	memset(display_buf, 0x00, DISPLAY_BUF_SIZE);
 	memset(zbuffer, 0xff, ZBUFFER_SIZE);
+
+	delta_time = 1.0f;
+	last_frame_time = 0;
+
+	platform_screen_init();
 }
 
 void display_update(void)
@@ -36,7 +35,7 @@ void display_update(void)
 		for (uint8_t y = 0; y < SCREEN_HEIGHT; y++)
 		{
 			uint8_t color = display_get_pixel(x, y);
-			DrawPixel(x, y, color ? WHITE : BLACK);
+			platform_screen_draw_pixel(x, y, color);
 		}
 	}
 }
@@ -64,20 +63,21 @@ void display_fade(uint8_t intensity, bool color)
 	}
 }
 
-// Adds a delay to limit play to specified fps
-// Calculates also delta to keep movement consistent in lower framerates
-// void fps(void)
-// {
-// 	while (millis() - lastFrameTime < FRAME_TIME)
-// 	{
-// 	};
-// 	delta = (float)(millis() - lastFrameTime) / FRAME_TIME;
-// 	lastFrameTime = millis();
-// }
-
-float getActualFps(void)
+// Adds a platform_utils_delay to limit play to specified fps
+// Calculates also delta_time to keep movement consistent in lower framerates
+void display_delay_fps(void)
 {
-	return 1000.0f / (FRAME_TIME * delta);
+	while (platform_utils_millis() - last_frame_time < FRAME_TIME)
+	{
+	};
+
+	delta_time = (float)(platform_utils_millis() - last_frame_time) / FRAME_TIME;
+	last_frame_time = platform_utils_millis();
+}
+
+float display_get_fps(void)
+{
+	return 1000.0f / (FRAME_TIME * delta_time);
 }
 
 // Faster way to render vertical bits
@@ -106,6 +106,19 @@ bool display_get_gradient(uint8_t x, uint8_t y, uint8_t i)
 
 	// Return the bit based on x
 	return READ_BIT(gradient[index], x % 8);
+}
+
+void display_draw_start(void)
+{
+	platform_screen_draw_start();
+	display_clear();
+}
+
+void display_draw_stop(void)
+{
+	display_update();
+	platform_screen_draw_stop();
+	display_delay_fps();
 }
 
 // Faster drawPixel than display.display_draw_pixel.

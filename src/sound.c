@@ -3,10 +3,7 @@
 #include <stdlib.h>
 
 #include "sound.h"
-
-/* Definitions -------------------------------------------------------------- */
-
-#define F_CPU 10000000
+#include "platform.h"
 
 /* Global variables --------------------------------------------------------- */
 
@@ -20,6 +17,8 @@ static uint8_t snd_len = 0;
 
 void sound_init(void)
 {
+	platform_audio_init();
+
 	idx = 0;
 	sound = false;
 	snd_ptr = NULL;
@@ -28,6 +27,8 @@ void sound_init(void)
 
 void sound_play(const uint8_t *snd, uint8_t len)
 {
+	platform_audio_play_start();
+
 	snd_ptr = (uint16_t *)(snd);
 	snd_len = len;
 	sound = true;
@@ -36,7 +37,7 @@ void sound_play(const uint8_t *snd, uint8_t len)
 // Set the frequency that we will get on pin OCR1A
 void sound_set_frequency(uint16_t freq)
 {
-	uint32_t requiredDivisor = (F_CPU / 2) / (uint32_t)freq;
+	uint32_t requiredDivisor = (CPU_FREQUENCY / 2) / (uint32_t)freq;
 
 	uint16_t prescalerVal;
 	uint8_t prescalerBits;
@@ -73,8 +74,9 @@ void sound_set_frequency(uint16_t freq)
 	//   OCR1A = top;
 }
 
-void sound_off(void)
+void sound_stop(void)
 {
+	platform_audio_play_stop();
 }
 
 // ISR(TIMER2_COMPA_vect) {
@@ -84,7 +86,7 @@ void sound_off(void)
 //       sound_set_frequency(freq);
 //     } else {
 //       idx = 0;
-//       sound_off();
+//       sound_stop();
 //       sound = false;
 //     }
 //   }
