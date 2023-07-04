@@ -17,7 +17,7 @@ static volatile uint32_t init_clock;
 void platform_screen_init(void)
 {
 	InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Doom Pico");
-	SetTargetFPS(30);
+	SetTargetFPS(FPS);
 }
 
 void platform_screen_draw_start(void)

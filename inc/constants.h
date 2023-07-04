@@ -5,8 +5,9 @@
 
 /* Definitions -------------------------------------------------------------- */
 
-#define CPU_FREQUENCY 10000000 // CPU clock frequency [Hz]
-#define FRAME_TIME 66.666666f  // Desired time per frame in ms (66.666666 is ~15 fps)
+#define F_CPU 10000000 // CPU clock frequency [Hz]
+#define FPS 15
+#define FRAME_TIME (1000.0f / FPS)  // Desired time per frame in ms (66.666666 is ~15 fps)
 #define RES_DIVIDER 2		   // Higher values will result in lower horizontal resolution when rasterize and lower process and memory usage
 							   // Lower will require more process and memory, but looks nicer
 #define Z_RES_DIVIDER 2		   // Zbuffer resolution divider. We sacrifice resolution to save memory

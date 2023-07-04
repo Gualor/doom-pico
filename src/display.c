@@ -19,13 +19,13 @@ uint8_t display_buf[DISPLAY_BUF_SIZE];
 
 void display_init(void)
 {
+	platform_screen_init();
+
 	memset(display_buf, 0x00, DISPLAY_BUF_SIZE);
 	memset(zbuffer, 0xff, ZBUFFER_SIZE);
 
 	delta_time = 1.0f;
 	last_frame_time = 0;
-
-	platform_screen_init();
 }
 
 void display_update(void)
@@ -139,7 +139,7 @@ void display_draw_pixel(int8_t x, int8_t y, bool color, bool raycast)
 bool display_get_pixel(int16_t x, int16_t y)
 {
 	if ((x >= 0) && (x < SCREEN_WIDTH) && (y >= 0) && (y < SCREEN_HEIGHT))
-		return (display_buf[x + (y / 8) * SCREEN_WIDTH] & (1 << (y & 7)));
+		return display_buf[x + (y / 8) * SCREEN_WIDTH] & (1 << (y & 7));
 
 	// Pixel out of bounds
 	return false;
@@ -160,22 +160,20 @@ void display_draw_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, bool color)
 void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y,
 						uint8_t intensity)
 {
-	int8_t y;
 	int8_t lower_y = MAX(MIN(start_y, end_y), 0);
 	int8_t higher_y = MIN(MAX(start_y, end_y), RENDER_HEIGHT - 1);
-	uint8_t c;
 
 #ifdef OPTIMIZE_DISPLAY
-	uint8_t bp;
-	uint8_t b;
-	for (c = 0; c < RES_DIVIDER; c++)
+	for (uint8_t c = 0; c < RES_DIVIDER; c++)
 	{
-		y = lower_y;
-		b = 0;
+		uint8_t bp;
+		uint8_t b = 0;
+		int8_t y = lower_y;
+
 		while (y <= higher_y)
 		{
 			bp = y % 8;
-			b = b | display_get_gradient(x + c, y, intensity) << bp;
+			b |= display_get_gradient(x + c, y, intensity) << bp;
 
 			if (bp == 7)
 			{
@@ -189,21 +187,17 @@ void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y,
 
 		// draw last byte
 		if (bp != 7)
-		{
 			display_draw_byte(x + c, y - 1, b);
-		}
 	}
 #else
-	y = lower_y;
+	int8_t y = lower_y;
 	while (y <= higher_y)
 	{
-		for (c = 0; c < RES_DIVIDER; c++)
+		for (uint8_t c = 0; c < RES_DIVIDER; c++)
 		{
 			// bypass black pixels
 			if (display_get_gradient(x + c, y, intensity))
-			{
 				display_draw_pixel(x + c, y, 1, true);
-			}
 		}
 
 		y++;
@@ -214,8 +208,8 @@ void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y,
 void display_draw_bitmap(int16_t x, int16_t y, const uint8_t bitmap[],
 						 int16_t w, int16_t h, uint16_t color)
 {
-
-	int16_t byteWidth = (w + 7) / 8; // Bitmap scanline pad = whole byte
+	// Bitmap scanline pad = whole byte
+	int16_t byteWidth = (w + 7) / 8;
 	uint8_t byte = 0;
 
 	for (int16_t j = 0; j < h; j++, y++)
