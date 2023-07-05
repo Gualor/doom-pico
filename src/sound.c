@@ -17,8 +17,6 @@ static uint8_t snd_len = 0;
 
 void sound_init(void)
 {
-	platform_audio_init();
-
 	idx = 0;
 	sound = false;
 	snd_ptr = NULL;
@@ -27,7 +25,7 @@ void sound_init(void)
 
 void sound_play(const uint8_t *snd, uint8_t len)
 {
-	platform_audio_play_start();
+	platform_play_audio(true);
 
 	snd_ptr = (uint16_t *)(snd);
 	snd_len = len;
@@ -76,7 +74,7 @@ void sound_set_frequency(uint16_t freq)
 
 void sound_stop(void)
 {
-	platform_audio_play_stop();
+	platform_play_audio(false);
 }
 
 // ISR(TIMER2_COMPA_vect) {

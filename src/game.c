@@ -8,15 +8,15 @@
 #include <time.h>
 
 #include "constants.h"
+#include "coords.h"
 #include "display.h"
 #include "entities.h"
 #include "input.h"
 #include "level.h"
+#include "platform.h"
 #include "sound.h"
 #include "sprites.h"
-#include "coords.h"
 #include "utils.h"
-#include "platform.h"
 
 /** TODO: add options to enlarge screen */
 /** TODO: check screen boundaries by using larger types (e.g., int16_t) */
@@ -742,7 +742,7 @@ void game_render_entities(float view_height)
 		{
 			uint8_t sprite;
 			if (entity[i].state == S_ALERT)
-				sprite = (platform_utils_millis() / 500) % 2; // walking
+				sprite = (platform_millis() / 500) % 2; // walking
 			else if (entity[i].state == S_FIRING)
 				sprite = 2; // fireball
 			else if (entity[i].state == S_HIT)
@@ -813,9 +813,9 @@ void game_render_entities(float view_height)
 void game_render_gun(uint8_t gun_pos, float jogging)
 {
 	// jogging
-	uint8_t x = 48 + sinf(platform_utils_millis() * JOGGING_SPEED) * 10 * jogging;
+	uint8_t x = 48 + sinf(platform_millis() * JOGGING_SPEED) * 10 * jogging;
 	uint8_t y = RENDER_HEIGHT - gun_pos +
-				fabsf(cosf(platform_utils_millis() * JOGGING_SPEED)) * 8 * jogging;
+				fabsf(cosf(platform_millis() * JOGGING_SPEED)) * 8 * jogging;
 
 	// Gun fire
 	if (gun_pos > GUN_SHOT_POS - 2)
@@ -932,7 +932,8 @@ void game_run_level_scene(void)
 							 player.plane.y * cosf(rot_speed);
 		}
 
-		view_height = fabsf(sinf(platform_utils_millis() * JOGGING_SPEED)) * 6.0f * jogging;
+		view_height = fabsf(sinf(platform_millis() * JOGGING_SPEED)) * 6.0f *
+					  jogging;
 
 		if (view_height > 5.9f)
 		{
@@ -1029,6 +1030,7 @@ void game_run_level_scene(void)
 
 void main(void)
 {
+	platform_init();
 	display_init();
 	sound_init();
 	input_init();

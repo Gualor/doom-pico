@@ -19,8 +19,6 @@ uint8_t display_buf[DISPLAY_BUF_SIZE];
 
 void display_init(void)
 {
-	platform_screen_init();
-
 	memset(display_buf, 0x00, DISPLAY_BUF_SIZE);
 	memset(zbuffer, 0xff, ZBUFFER_SIZE);
 
@@ -35,7 +33,7 @@ void display_update(void)
 		for (uint8_t y = 0; y < SCREEN_HEIGHT; y++)
 		{
 			uint8_t color = display_get_pixel(x, y);
-			platform_screen_draw_pixel(x, y, color);
+			platform_draw_pixel(x, y, color);
 		}
 	}
 }
@@ -63,16 +61,16 @@ void display_fade(uint8_t intensity, bool color)
 	}
 }
 
-// Adds a platform_utils_delay to limit play to specified fps
+// Adds a platform_delay to limit play to specified fps
 // Calculates also delta_time to keep movement consistent in lower framerates
 void display_delay_fps(void)
 {
-	while (platform_utils_millis() - last_frame_time < FRAME_TIME)
+	while (platform_millis() - last_frame_time < FRAME_TIME)
 	{
 	};
 
-	delta_time = (float)(platform_utils_millis() - last_frame_time) / FRAME_TIME;
-	last_frame_time = platform_utils_millis();
+	delta_time = (float)(platform_millis() - last_frame_time) / FRAME_TIME;
+	last_frame_time = platform_millis();
 }
 
 float display_get_fps(void)
@@ -110,14 +108,14 @@ bool display_get_gradient(uint8_t x, uint8_t y, uint8_t i)
 
 void display_draw_start(void)
 {
-	platform_screen_draw_start();
+	platform_draw_start();
 	display_clear();
 }
 
 void display_draw_stop(void)
 {
 	display_update();
-	platform_screen_draw_stop();
+	platform_draw_stop();
 	display_delay_fps();
 }
 

@@ -14,53 +14,42 @@ static volatile uint32_t init_clock;
 
 /* Function definitions ----------------------------------------------------- */
 
-void platform_screen_init(void)
+void platform_init(void)
 {
 	InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Doom Pico");
 	SetTargetFPS(FPS);
+
+	init_clock = clock();
 }
 
-void platform_screen_draw_start(void)
+void platform_draw_start(void)
 {
 	BeginDrawing();
 }
 
-void platform_screen_draw_stop(void)
+void platform_draw_stop(void)
 {
 	EndDrawing();
 }
 
-void platform_screen_draw_pixel(uint8_t x, uint8_t y, bool color)
+void platform_draw_pixel(uint8_t x, uint8_t y, bool color)
 {
 	DrawPixel(x, y, color ? WHITE : BLACK);
 }
 
-void platform_audio_init(void)
+void platform_play_audio(bool play)
 {
 }
 
-void platform_audio_play_start(void)
-{
-}
-
-void platform_audio_play_stop(void)
-{
-}
-
-void platform_utils_init(void)
-{
-	init_clock = clock();
-}
-
-uint32_t platform_utils_millis(void)
+uint32_t platform_millis(void)
 {
 	return ((clock() - init_clock) * 1000) / CLOCKS_PER_SEC;
 }
 
-void platform_utils_delay(uint32_t ms)
+void platform_delay(uint32_t ms)
 {
-	uint32_t t0 = platform_utils_millis();
-	while ((platform_utils_millis() - t0) < ms)
+	uint32_t t0 = platform_millis();
+	while ((platform_millis() - t0) < ms)
 	{
 		asm("nop");
 	};
