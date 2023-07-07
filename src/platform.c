@@ -8,6 +8,12 @@
 
 #include "raylib.h"
 
+/* Definitions -------------------------------------------------------------- */
+
+#define WINDOW_ZOOM 4
+#define WINDOW_WIDTH (SCREEN_WIDTH * WINDOW_ZOOM)
+#define WINDOW_HEIGHT (SCREEN_HEIGHT * WINDOW_ZOOM)
+
 /* Global variables --------------------------------------------------------- */
 
 static volatile uint32_t init_clock;
@@ -16,7 +22,7 @@ static volatile uint32_t init_clock;
 
 void platform_init(void)
 {
-	InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Doom Pico");
+	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Doom Pico");
 	SetTargetFPS(FPS);
 
 	init_clock = clock();
@@ -34,7 +40,19 @@ void platform_draw_stop(void)
 
 void platform_draw_pixel(uint8_t x, uint8_t y, bool color)
 {
-	DrawPixel(x, y, color ? WHITE : BLACK);
+	Color c = color ? WHITE : BLACK;
+
+#if (WINDOW_ZOOM > 1)
+	for (int i = x * WINDOW_ZOOM; i < (x + 1) * WINDOW_ZOOM; i++)
+	{
+		for (int j = y * WINDOW_ZOOM; j < (y + 1) * WINDOW_ZOOM; j++)
+		{
+			DrawPixel(i, j, c);
+		}
+	}
+#else
+	DrawPixel(x, y, c);
+#endif
 }
 
 void platform_play_audio(bool play)

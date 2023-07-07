@@ -7,14 +7,22 @@
 
 #define F_CPU 10000000 // CPU clock frequency [Hz]
 #define FPS 15
-#define FRAME_TIME (1000.0f / FPS)  // Desired time per frame in ms (66.666666 is ~15 fps)
-#define RES_DIVIDER 2		   // Higher values will result in lower horizontal resolution when rasterize and lower process and memory usage
-							   // Lower will require more process and memory, but looks nicer
-#define Z_RES_DIVIDER 2		   // Zbuffer resolution divider. We sacrifice resolution to save memory
-#define DISTANCE_MULTIPLIER 20 // Distances are stored as uint8_t, multiplying the distance we can obtain more precision taking care
-							   // of keep numbers inside the type range. Max is 256 / MAX_RENDER_DEPTH
+#define FRAME_TIME (1000.0f / FPS) // Desired time per frame in ms (66.666666 is ~15 fps)
+#define RES_DIVIDER 2			   // Higher values will result in lower horizontal resolution when rasterize and lower process and memory usage
+								   // Lower will require more process and memory, but looks nicer
+#define Z_RES_DIVIDER 2			   // Zbuffer resolution divider. We sacrifice resolution to save memory
+#define DISTANCE_MULTIPLIER 20	   // Distances are stored as uint8_t, multiplying the distance we can obtain more precision taking care
+								   // of keep numbers inside the type range. Max is 256 / MAX_RENDER_DEPTH
 #define MAX_RENDER_DEPTH 12
 #define MAX_SPRITE_DEPTH 8
+
+/* Display */
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define HALF_WIDTH (SCREEN_WIDTH / 2)
+#define HALF_HEIGHT (SCREEN_HEIGHT / 2)
+#define RENDER_HEIGHT 58 // Raycaster working height
+#define HUD_HEIGHT 6	 // HUD working height
 
 /* Level */
 #define LEVEL_WIDTH_BASE 6
@@ -28,7 +36,7 @@
 
 #define ROT_SPEED 0.12f
 #define MOV_SPEED 0.2f
-#define MOV_SPEED_INV 5.0f // (1 / MOV_SPEED)
+#define MOV_SPEED_INV (1.0f / MOV_SPEED)
 
 #define JOGGING_SPEED 0.005f
 #define ENEMY_SPEED 0.02f
@@ -49,13 +57,6 @@
 #define ENEMY_MELEE_DAMAGE 8
 #define ENEMY_FIREBALL_DAMAGE 20
 #define GUN_MAX_DAMAGE 15
-
-/* Display */
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
-#define HALF_WIDTH (SCREEN_WIDTH / 2)
-#define RENDER_HEIGHT 56 // raycaster working height (the rest is for the hud)
-#define HALF_HEIGHT (SCREEN_HEIGHT / 2)
 
 #endif /* CONSTANTS_H */
 

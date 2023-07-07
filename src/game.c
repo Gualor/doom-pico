@@ -833,8 +833,8 @@ void game_render_gun(uint8_t gun_pos, float jogging)
 // Render values for the HUD
 void game_render_hud(void)
 {
-	display_draw_rect(12, 58, 15, 6, false);
-	display_draw_rect(50, 58, 5, 6, false);
+	display_draw_rect(12, 58, 15, HUD_HEIGHT, false);
+	display_draw_rect(50, 58, 5, HUD_HEIGHT, false);
 
 	display_draw_text(2, 58, "{}", false);	// Health symbol
 	display_draw_text(40, 58, "[]", false); // Keys symbol
@@ -846,7 +846,7 @@ void game_render_hud(void)
 // Debug stats
 void game_render_stats(void)
 {
-	display_draw_rect(58, 58, 70, 6, false);
+	display_draw_rect(58, 58, 70, HUD_HEIGHT, false);
 	display_draw_int(114, 58, (uint8_t)(display_get_fps()));
 	display_draw_int(82, 58, num_entities);
 }
