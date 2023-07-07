@@ -30,7 +30,7 @@ void display_draw_byte(uint8_t x, uint8_t y, uint8_t b);
 uint8_t display_get_byte(uint8_t x, uint8_t y);
 void display_draw_start(void);
 void display_draw_stop(void);
-void display_draw_pixel(int8_t x, int8_t y, bool color, bool raycast);
+void display_draw_pixel(int16_t x, int16_t y, bool color, bool raycast);
 bool display_get_pixel(int16_t x, int16_t y);
 void display_draw_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, bool color);
 void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y,

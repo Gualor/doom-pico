@@ -121,9 +121,9 @@ void display_draw_stop(void)
 
 // Faster drawPixel than display.display_draw_pixel.
 // Avoids some checks to make it faster.
-void display_draw_pixel(int8_t x, int8_t y, bool color, bool raycast)
+void display_draw_pixel(int16_t x, int16_t y, bool color, bool raycast)
 {
-	// prevent write out of screen buffer
+	// Prevent write out of screen buffer
 	if ((x < 0) || (x >= SCREEN_WIDTH) || (y < 0) ||
 		(y >= (raycast ? RENDER_HEIGHT : SCREEN_HEIGHT)))
 		return;
