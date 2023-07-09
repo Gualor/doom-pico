@@ -34,12 +34,12 @@ void display_draw_pixel(int16_t x, int16_t y, bool color, bool raycast);
 bool display_get_pixel(int16_t x, int16_t y);
 void display_draw_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, bool color);
 void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y,
-						uint8_t intensity);
+                        uint8_t intensity);
 void display_draw_bitmap(int16_t x, int16_t y, const uint8_t bitmap[],
-						 int16_t w, int16_t h, uint16_t color);
+                         int16_t w, int16_t h, uint16_t color);
 void display_draw_sprite(int8_t x, int8_t y, const uint8_t bitmap[],
-						 const uint8_t mask[], int16_t w, int16_t h,
-						 uint8_t sprite, float distance);
+                         const uint8_t mask[], int16_t w, int16_t h,
+                         uint8_t sprite, float distance);
 void display_draw_char(int8_t x, int8_t y, char ch);
 void display_draw_text(int8_t x, int8_t y, char *txt, uint8_t space);
 void display_draw_int(uint8_t x, uint8_t y, uint8_t num);

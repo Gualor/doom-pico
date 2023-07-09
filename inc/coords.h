@@ -7,8 +7,8 @@
 
 typedef struct
 {
-	float x;
-	float y;
+    float x;
+    float y;
 } Coords;
 
 /* Function prototypes ------------------------------------------------------ */

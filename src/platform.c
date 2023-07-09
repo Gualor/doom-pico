@@ -41,94 +41,93 @@ void platform_audio_callback(void *buffer, unsigned int frames);
 
 void platform_init(void)
 {
-	/* Window initialization */
-	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Doom Pico");
-	SetTargetFPS(FPS);
+    /* Window initialization */
+    InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Doom Pico");
+    SetTargetFPS(FPS);
 
-	/* Audio initialization */
-	InitAudioDevice();
-	SetAudioStreamBufferSizeDefault(AUDIO_BUFFER_DEFAULT_SIZE);
-	audio_stream = LoadAudioStream(
-		AUDIO_SAMPLING_RATE,
-		AUDIO_SAMPLE_SIZE,
-		AUDIO_CHANNEL_NUM
-	);
-	SetAudioStreamCallback(audio_stream, platform_audio_callback);
-	PlayAudioStream(audio_stream);
-	PauseAudioStream(audio_stream);
+    /* Audio initialization */
+    InitAudioDevice();
+    SetAudioStreamBufferSizeDefault(AUDIO_BUFFER_DEFAULT_SIZE);
+    audio_stream = LoadAudioStream(
+        AUDIO_SAMPLING_RATE,
+        AUDIO_SAMPLE_SIZE,
+        AUDIO_CHANNEL_NUM);
+    SetAudioStreamCallback(audio_stream, platform_audio_callback);
+    PlayAudioStream(audio_stream);
+    PauseAudioStream(audio_stream);
 
-	clock_t0 = clock();
+    clock_t0 = clock();
 }
 
 void platform_draw_start(void)
 {
-	BeginDrawing();
+    BeginDrawing();
 }
 
 void platform_draw_stop(void)
 {
-	EndDrawing();
+    EndDrawing();
 }
 
 void platform_draw_pixel(uint8_t x, uint8_t y, bool color)
 {
 #if (WINDOW_ZOOM > 1)
-	Color c = color ? WHITE : BLACK;
-	for (int i = x * WINDOW_ZOOM; i < (x + 1) * WINDOW_ZOOM; i++)
-	{
-		for (int j = y * WINDOW_ZOOM; j < (y + 1) * WINDOW_ZOOM; j++)
-		{
-			DrawPixel(i, j, c);
-		}
-	}
+    Color c = color ? WHITE : BLACK;
+    for (int i = x * WINDOW_ZOOM; i < (x + 1) * WINDOW_ZOOM; i++)
+    {
+        for (int j = y * WINDOW_ZOOM; j < (y + 1) * WINDOW_ZOOM; j++)
+        {
+            DrawPixel(i, j, c);
+        }
+    }
 #else
-	DrawPixel(x, y, color);
+    DrawPixel(x, y, color);
 #endif
 }
 
 void platform_audio_play(void)
 {
-	old_frequency = 0;
-	ResumeAudioStream(audio_stream);
+    old_frequency = 0;
+    ResumeAudioStream(audio_stream);
 }
 
 void platform_audio_callback(void *buffer, unsigned int frames)
 {
-	// Get next frequency to play
-	uint16_t frequency = sound_get_frequency();
+    // Get next frequency to play
+    uint16_t frequency = sound_get_frequency();
 
-	// End of sound, pause stream
-	if (frequency == 0)
-	{
-		PauseAudioStream(audio_stream);
-		return;
-	}
+    // End of sound, pause stream
+    if (frequency == 0)
+    {
+        PauseAudioStream(audio_stream);
+        return;
+    }
 
-	// Same frequency as before, no need to update
-	if (frequency == old_frequency)
-		return;
+    // Same frequency as before, no need to update
+    if (frequency == old_frequency)
+        return;
 
-	// Create square wave with given frequency
-	uint16_t wave_length = AUDIO_SAMPLING_RATE / frequency;
-	uint16_t *buf = (uint16_t *)buffer;
-	for (uint16_t i = 0; i < frames; i++)
-		buf[i] = (i % wave_length) < wave_length / 2 ? SHRT_MAX : SHRT_MIN;
+    // Create square wave with given frequency
+    uint16_t wave_length = AUDIO_SAMPLING_RATE / frequency;
+    uint16_t *buf = (uint16_t *)buffer;
+    for (uint16_t i = 0; i < frames; i++)
+        buf[i] = (i % wave_length) < wave_length / 2 ? SHRT_MAX : SHRT_MIN;
 
-	old_frequency = frequency;
+    old_frequency = frequency;
 }
 
 uint32_t platform_millis(void)
 {
-	return ((clock() - clock_t0) * 1000) / CLOCKS_PER_SEC;
+    return ((clock() - clock_t0) * 1000) / CLOCKS_PER_SEC;
 }
 
 void platform_delay(uint32_t ms)
 {
-	uint32_t t0 = platform_millis();
-	while ((platform_millis() - t0) < ms)
-	{
-		asm("nop");
-	};
+    uint32_t t0 = platform_millis();
+    while ((platform_millis() - t0) < ms)
+    {
+        asm("nop");
+    };
 }
 
 #else
