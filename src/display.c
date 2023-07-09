@@ -17,6 +17,10 @@ uint8_t display_buf[DISPLAY_BUF_SIZE];
 
 /* Function definitions ----------------------------------------------------- */
 
+/**
+ * @brief DISPLAY initialize display state.
+ *
+ */
 void display_init(void)
 {
     memset(display_buf, 0x00, DISPLAY_BUF_SIZE);
@@ -26,6 +30,10 @@ void display_init(void)
     last_frame_time = 0;
 }
 
+/**
+ * @brief DISPLAY update screen with display buffer data.
+ *
+ */
 void display_update(void)
 {
     for (uint8_t x = 0; x < SCREEN_WIDTH; x++)
@@ -38,17 +46,31 @@ void display_update(void)
     }
 }
 
+/**
+ * @brief DISPLAY clear display buffer.
+ *
+ */
 void display_clear(void)
 {
     memset(display_buf, 0x00, DISPLAY_BUF_SIZE);
 }
 
+/**
+ * @brief DISPLAY invert display buffer.
+ *
+ */
 void display_invert(void)
 {
     for (uint16_t i = 0; i < DISPLAY_BUF_SIZE; i++)
         display_buf[i] = ~display_buf[i];
 }
 
+/**
+ * @brief DISPLAY apply fading effect to display buffer.
+ *
+ * @param intensity
+ * @param color
+ */
 void display_fade(uint8_t intensity, bool color)
 {
     for (uint8_t x = 0; x < SCREEN_WIDTH; x++)
@@ -61,8 +83,36 @@ void display_fade(uint8_t intensity, bool color)
     }
 }
 
-// Adds a platform_delay to limit play to specified fps
-// Calculates also delta_time to keep movement consistent in lower framerates
+/**
+ * @brief DISPLAY get pixel gradient intensity pattern value.
+ *
+ * @param x         X coordinate
+ * @param y         Y coordinate
+ * @param intensity Brightness
+ * @return true
+ * @return false
+ */
+bool display_get_gradient(uint8_t x, uint8_t y, uint8_t intensity)
+{
+    if (intensity == 0)
+        return 0;
+    if (intensity >= GRADIENT_COUNT - 1)
+        return 1;
+
+    // Gradient index + y byte offset + x byte offset
+    uint8_t index = (MAX(0, MIN(GRADIENT_COUNT - 1, intensity)) *
+                     GRADIENT_WIDTH * GRADIENT_HEIGHT) +
+                    (y * GRADIENT_WIDTH % (GRADIENT_WIDTH * GRADIENT_HEIGHT)) +
+                    (x / GRADIENT_HEIGHT % GRADIENT_WIDTH);
+
+    // Return the bit based on x
+    return READ_BIT(gradient[index], x % 8);
+}
+
+/**
+ * @brief DISPLAY add delay between frames for stable FPS.
+ *
+ */
 void display_delay_fps(void)
 {
     while (platform_millis() - last_frame_time < FRAME_TIME)
@@ -73,45 +123,30 @@ void display_delay_fps(void)
     last_frame_time = platform_millis();
 }
 
+/**
+ * @brief DISPLAY get current FPS value.
+ *
+ * @return float
+ */
 float display_get_fps(void)
 {
     return 1000.0f / (FRAME_TIME * delta_time);
 }
 
-// Faster way to render vertical bits
-void display_draw_byte(uint8_t x, uint8_t y, uint8_t b)
-{
-    display_buf[(y / 8) * SCREEN_WIDTH + x] = b;
-}
-
-uint8_t display_get_byte(uint8_t x, uint8_t y)
-{
-    return display_buf[(y / 8) * SCREEN_WIDTH + x];
-}
-
-bool display_get_gradient(uint8_t x, uint8_t y, uint8_t i)
-{
-    if (i == 0)
-        return 0;
-    if (i >= GRADIENT_COUNT - 1)
-        return 1;
-
-    // Gradient index + y byte offset + x byte offset
-    uint8_t index = (MAX(0, MIN(GRADIENT_COUNT - 1, i)) * GRADIENT_WIDTH *
-                     GRADIENT_HEIGHT) +
-                    (y * GRADIENT_WIDTH % (GRADIENT_WIDTH * GRADIENT_HEIGHT)) +
-                    (x / GRADIENT_HEIGHT % GRADIENT_WIDTH);
-
-    // Return the bit based on x
-    return READ_BIT(gradient[index], x % 8);
-}
-
+/**
+ * @brief DISPLAY clear screen and start drawing.
+ *
+ */
 void display_draw_start(void)
 {
     platform_draw_start();
     display_clear();
 }
 
+/**
+ * @brief DISPLAY update screen, stop drowing, and add FPS delay.
+ *
+ */
 void display_draw_stop(void)
 {
     display_update();
@@ -119,8 +154,14 @@ void display_draw_stop(void)
     display_delay_fps();
 }
 
-// Faster drawPixel than display.display_draw_pixel.
-// Avoids some checks to make it faster.
+/**
+ * @brief DISPLAY draw pixel to display buffer.
+ *
+ * @param x       X coordinate
+ * @param y       Y coordinate
+ * @param color   Color value
+ * @param raycast Check raycast rendering
+ */
 void display_draw_pixel(int16_t x, int16_t y, bool color, bool raycast)
 {
     // Prevent write out of screen buffer
@@ -134,6 +175,14 @@ void display_draw_pixel(int16_t x, int16_t y, bool color, bool raycast)
         display_buf[x + (y / 8) * SCREEN_WIDTH] &= ~(1 << (y & 7)); // Black
 }
 
+/**
+ * @brief DISPLAY get pixel value from display buffer.
+ *
+ * @param x X coordinate
+ * @param y Y coordinate
+ * @return true
+ * @return false
+ */
 bool display_get_pixel(int16_t x, int16_t y)
 {
     if ((x >= 0) && (x < SCREEN_WIDTH) && (y >= 0) && (y < SCREEN_HEIGHT))
@@ -143,6 +192,44 @@ bool display_get_pixel(int16_t x, int16_t y)
     return false;
 }
 
+/**
+ * @brief DISPLAY draw entire byte to display buffer for faster vertical line
+ * rendering.
+ *
+ * NOTE: One byte encodes 8 pixels in a vertical line.
+ *
+ * @param x    X coordinate
+ * @param y    Y coordinate
+ * @param byte Display buffer byte
+ */
+void display_draw_byte(uint8_t x, uint8_t y, uint8_t byte)
+{
+    display_buf[(y / 8) * SCREEN_WIDTH + x] = byte;
+}
+
+/**
+ * @brief DISPLAY get full display buffer byte.
+ *
+ * NOTE: One byte encodes 8 pixels in a vertical line.
+ *
+ * @param x X coordinate
+ * @param y Y coordinate
+ * @return uint8_t
+ */
+uint8_t display_get_byte(uint8_t x, uint8_t y)
+{
+    return display_buf[(y / 8) * SCREEN_WIDTH + x];
+}
+
+/**
+ * @brief DISPLAY draw rectangle shape to display buffer.
+ *
+ * @param x     X coordinate
+ * @param y     Y coordinate
+ * @param w     Width
+ * @param h     Height
+ * @param color Color value
+ */
 void display_draw_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, bool color)
 {
     for (uint8_t i = x; i < w; i++)
@@ -152,9 +239,18 @@ void display_draw_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, bool color)
     }
 }
 
-// For raycaster only
-// Custom draw Vertical lines that fills with a pattern to simulate
-// different brightness. Affected by RES_DIVIDER
+/**
+ * @brief DISPLAY draw vertical lines to display buffer.
+ * @details Custom draw Vertical lines that fills with a pattern to simulate
+ * different brightness.
+ *
+ * NOTE: For raycasting only, Affected by RES_DIVIDER.
+ *
+ * @param x         X coordinate
+ * @param start_y   Y start coordinate
+ * @param end_y     Y end coordinate
+ * @param intensity Brightness
+ */
 void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y,
                         uint8_t intensity)
 {
@@ -175,7 +271,7 @@ void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y,
 
             if (bp == 7)
             {
-                // write the whole byte
+                // Write the whole byte
                 display_draw_byte(x + c, y, b);
                 b = 0;
             }
@@ -183,7 +279,7 @@ void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y,
             y++;
         }
 
-        // draw last byte
+        // Draw last byte
         if (bp != 7)
             display_draw_byte(x + c, y - 1, b);
     }
@@ -193,7 +289,7 @@ void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y,
     {
         for (uint8_t c = 0; c < RES_DIVIDER; c++)
         {
-            // bypass black pixels
+            // Bypass black pixels
             if (display_get_gradient(x + c, y, intensity))
                 display_draw_pixel(x + c, y, 1, true);
         }
@@ -203,6 +299,16 @@ void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y,
 #endif
 }
 
+/**
+ * @brief DISPLAY draw bitmap to display buffer.
+ *
+ * @param x      X coordinate
+ * @param y      Y coordinate
+ * @param bitmap Bitmap byte array
+ * @param w      Width
+ * @param h      Height
+ * @param color  Color value
+ */
 void display_draw_bitmap(int16_t x, int16_t y, const uint8_t bitmap[],
                          int16_t w, int16_t h, uint16_t color)
 {
@@ -225,7 +331,20 @@ void display_draw_bitmap(int16_t x, int16_t y, const uint8_t bitmap[],
     }
 }
 
-// Custom display_draw_bitmap method with scale support, mask, zindex and pattern filling
+/**
+ * @brief DISPLAY draw sprite to display buffer.
+ * @details Custom display_draw_bitmap method with scale support, mask, zindex
+ * and pattern filling
+ *
+ * @param x        X coordinate
+ * @param y        Y coordinate
+ * @param bitmap   Bitmap byte array
+ * @param mask     Bitmap mask byte array
+ * @param w        Width
+ * @param h        Height
+ * @param sprite   Sprite type
+ * @param distance Distance from camera
+ */
 void display_draw_sprite(int8_t x, int8_t y, const uint8_t bitmap[],
                          const uint8_t mask[], int16_t w, int16_t h,
                          uint8_t sprite, float distance)
@@ -279,9 +398,14 @@ void display_draw_sprite(int8_t x, int8_t y, const uint8_t bitmap[],
     }
 }
 
-// Draw a single character.
-// Made for a custom font with some useful sprites. Char size 4 x 6
-// Uses less memory than display.print()
+/**
+ * @brief DISPLAY draw single character to display buffer.
+ * @details Made for a custom font with some useful sprites. Char size 4 x 6.
+ *
+ * @param x  X coordinate
+ * @param y  Y coordinate
+ * @param ch ASCII character
+ */
 void display_draw_char(int8_t x, int8_t y, char ch)
 {
     // Find the character
@@ -301,6 +425,14 @@ void display_draw_char(int8_t x, int8_t y, char ch)
     }
 }
 
+/**
+ * @brief DISPLAY draw string to display buffer.
+ *
+ * @param x     X coordinate
+ * @param y     Y coordinate
+ * @param txt   ASCII string
+ * @param space Spacing between letters
+ */
 void display_draw_text(int8_t x, int8_t y, char *txt, uint8_t space)
 {
     uint8_t i = 0;
@@ -313,7 +445,15 @@ void display_draw_text(int8_t x, int8_t y, char *txt, uint8_t space)
     }
 }
 
-// Draw an integer (3 digit max!)
+/**
+ * @brief DISPLAY draw an integer number to display buffer.
+ *
+ * NOTE: Up to 3 digit max.
+ *
+ * @param x   X coordinate
+ * @param y   Y coordinate
+ * @param num Integer number
+ */
 void display_draw_int(uint8_t x, uint8_t y, uint8_t num)
 {
     char buf[4]; // 3 char + \0
