@@ -10,7 +10,7 @@ OBJS := $(SRCS:%=$(BIN_DIR)/%.o)
 DEPS := $(OBJS:.o=.d)
 
 CFLAGS := -Iinc -Ilib -MMD -MP -g
-LDFLAGS := -L$(LIB_DIR) -lraylib -lpthread -lGL -lm -lpthread -ldl -lrt -lX11
+LDFLAGS := -lm -lraylib
 
 $(BIN_DIR)/$(TARGET_EXEC): $(OBJS)
 	$(CC) $(OBJS) -o $@ $(LDFLAGS)

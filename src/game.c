@@ -19,7 +19,8 @@
 #include "utils.h"
 
 /** TODO: verify if using pointers instead of returning struct is faster */
-/** TODO: add sound support */
+/** TODO: remove all raylib dependencies */
+/** TODO: integrate doom brutality expansion */
 
 /* Data types --------------------------------------------------------------- */
 
@@ -33,7 +34,7 @@ typedef enum
 /* Function prototypes ------------------------------------------------------ */
 
 /* Level */
-static void game_level_init(const uint8_t level[]);
+static void game_init_level_scene(const uint8_t level[]);
 static EntityType game_level_get_block(const uint8_t level[], uint8_t x,
 									   uint8_t y);
 
@@ -103,7 +104,7 @@ void game_jump_to_scene(GameScene scene)
 		break;
 
 	case SCENE_LEVEL1:
-		game_level_init(level_1);
+		game_init_level_scene(level_1);
 		game_run_scene = game_run_level_scene;
 		break;
 
@@ -113,14 +114,12 @@ void game_jump_to_scene(GameScene scene)
 	}
 }
 
-// Finds the player in the map
-
 /**
  * @brief GAME initialize level state.
  * 
  * @param level Level byte map
  */
-void game_level_init(const uint8_t level[])
+void game_init_level_scene(const uint8_t level[])
 {
 	memset(entity, 0x00, sizeof(Entity) * MAX_ENTITIES);
 	memset(static_entity, 0x00, sizeof(StaticEntity) * MAX_STATIC_ENTITIES);
@@ -242,8 +241,8 @@ void game_spawn_entity(EntityType type, uint8_t x, uint8_t y)
 /**
  * @brief GAME spawn a fireball at a given location.
  * 
- * @param x    X coordinate
- * @param y    Y coordinate
+ * @param x X coordinate
+ * @param y Y coordinate
  */
 void game_spawn_fireball(float x, float y)
 {
@@ -258,9 +257,9 @@ void game_spawn_fireball(float x, float y)
 		return;
 
 	// Calculate direction. 32 angles
-	int16_t dir = FIREBALL_ANGLES +
-				  atan2f(y - player.pos.y, x - player.pos.x) /
-					  PI * FIREBALL_ANGLES;
+	int16_t dir = FIREBALL_ANGLES * (
+		(atan2f(y - player.pos.y, x - player.pos.x) / PI) + 1);
+
 	if (dir < 0)
 		dir += FIREBALL_ANGLES * 2;
 
@@ -282,12 +281,10 @@ void game_remove_entity(EntityUID uid)
 	{
 		if (!found && entity[i].uid == uid)
 		{
-			// todo: doze it
 			found = true;
 			num_entities--;
 		}
 
-		// displace entities
 		if (found)
 			entity[i] = entity[i + 1];
 
@@ -313,7 +310,6 @@ void game_remove_static_entity(EntityUID uid)
 			num_static_entities--;
 		}
 
-		// displace entities
 		if (found)
 			static_entity[i] = static_entity[i + 1];
 
@@ -454,7 +450,7 @@ void game_update_entities(const uint8_t level[])
 		if (entity[i].timer > 0)
 			entity[i].timer--;
 
-		// too far away. put it in doze mode
+		// Too far away. put it in doze mode
 		if (entity[i].distance > MAX_ENTITY_DISTANCE)
 		{
 			game_remove_entity(entity[i].uid);
@@ -462,7 +458,7 @@ void game_update_entities(const uint8_t level[])
 			continue;
 		}
 
-		// bypass render if hidden
+		// Bypass render if hidden
 		if (entity[i].state == S_HIDDEN)
 		{
 			i++;
@@ -488,7 +484,7 @@ void game_update_entities(const uint8_t level[])
 				if (entity[i].timer == 0)
 				{
 					entity[i].state = S_ALERT; // Back to alert state
-					entity[i].timer = 40; // Delay next fireball thrown
+					entity[i].timer = 40;      // Delay next fireball thrown
 				}
 			}
 			else if (entity[i].state == S_FIRING)
@@ -496,7 +492,7 @@ void game_update_entities(const uint8_t level[])
 				if (entity[i].timer == 0)
 				{
 					entity[i].state = S_ALERT; // Back to alert state
-					entity[i].timer = 40; // Delay next fireball thrown
+					entity[i].timer = 40;      // Delay next fireball thrown
 				}
 			}
 			else
@@ -507,7 +503,7 @@ void game_update_entities(const uint8_t level[])
 					if (entity[i].state != S_ALERT)
 					{
 						entity[i].state = S_ALERT; // Back to alert state
-						entity[i].timer = 20; // used to throw fireballs
+						entity[i].timer = 20;      // used to throw fireballs
 					}
 					else
 					{
@@ -545,8 +541,8 @@ void game_update_entities(const uint8_t level[])
 					else if (entity[i].timer == 0)
 					{
 						// Melee attack
-						player.health = MAX(
-							0, player.health - ENEMY_MELEE_DAMAGE);
+						player.health = 
+							MAX(0, player.health - ENEMY_MELEE_DAMAGE);
 						entity[i].timer = 14;
 						flash_screen = true;
 					}
@@ -564,8 +560,8 @@ void game_update_entities(const uint8_t level[])
 			if (entity[i].distance < FIREBALL_COLLIDER_DIST)
 			{
 				// Hit the player and disappear
-				player.health = MAX(
-					0, player.health - ENEMY_FIREBALL_DAMAGE);
+				player.health = 
+					MAX(0, player.health - ENEMY_FIREBALL_DAMAGE);
 				flash_screen = true;
 				game_remove_entity(entity[i].uid);
 				continue; // continue in the loop
@@ -626,7 +622,7 @@ void game_update_entities(const uint8_t level[])
 
 /**
  * @brief GAME render map with raycasting technique.
- * NB: Based on https://lodev.org/cgtutor/raycasting.html
+ * NOTE: Based on https://lodev.org/cgtutor/raycasting.html
  * 
  * @param level       Level byte map
  * @param view_height View height of the camera
@@ -724,11 +720,11 @@ void game_render_map(const uint8_t level[], float view_height)
 		{
 			float distance;
 			if (!side)
-				distance = MAX(
-					1, (map_x - player.pos.x + (1 - step_x) / 2) / ray_x);
+				distance =
+					MAX(1, (map_x - player.pos.x + (1 - step_x) / 2) / ray_x);
 			else
-				distance = MAX(
-					1, (map_y - player.pos.y + (1 - step_y) / 2) / ray_y);
+				distance =
+					MAX(1, (map_y - player.pos.y + (1 - step_y) / 2) / ray_y);
 
 			// store zbuffer value for the column
 			zbuffer[x / Z_RES_DIVIDER] = MIN(
@@ -1047,25 +1043,23 @@ void game_run_level_scene(void)
 							 player.plane.y * cosf(rot_speed);
 		}
 
-		view_height = fabsf(sinf(platform_millis() * JOGGING_SPEED)) * 6.0f *
-					  jogging;
+		view_height = 
+			fabsf(sinf(platform_millis() * JOGGING_SPEED)) * 6.0f * jogging;
 
 		if (view_height > 5.9f)
 		{
-			if (sound == false)
+			if (walk_sound_toggle)
 			{
-				if (walk_sound_toggle)
-				{
-					sound_play(walk1_snd, WALK1_SND_LEN);
-					walk_sound_toggle = false;
-				}
-				else
-				{
-					sound_play(walk2_snd, WALK2_SND_LEN);
-					walk_sound_toggle = true;
-				}
+				sound_play(walk1_snd, WALK1_SND_LEN);
+				walk_sound_toggle = false;
+			}
+			else
+			{
+				sound_play(walk2_snd, WALK2_SND_LEN);
+				walk_sound_toggle = true;
 			}
 		}
+
 		// Update gun
 		if (gun_pos > GUN_TARGET_POS)
 		{
@@ -1079,14 +1073,14 @@ void game_run_level_scene(void)
 		}
 		else if (!gun_fired && input_fire())
 		{
-			// ready to fire and fire pressed
+			// Ready to fire and fire pressed
 			gun_pos = GUN_SHOT_POS;
 			gun_fired = true;
 			game_fire_shootgun();
 		}
 		else if (gun_fired && !input_fire())
 		{
-			// just fired and restored position
+			// Just fired and restored position
 			gun_fired = false;
 		}
 

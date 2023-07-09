@@ -14,7 +14,7 @@ void platform_init(void);
 void platform_draw_start(void);
 void platform_draw_stop(void);
 void platform_draw_pixel(uint8_t x, uint8_t y, bool color);
-void platform_play_audio(bool play);
+void platform_audio_play(void);
 uint32_t platform_millis(void);
 void platform_delay(uint32_t ms);
 
