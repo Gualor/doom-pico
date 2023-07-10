@@ -1119,7 +1119,7 @@ void game_run_level_scene(void)
     // Flash screen
     if (flash_screen)
     {
-        // display_invert();
+        display_invert();
         flash_screen = false;
     }
 
