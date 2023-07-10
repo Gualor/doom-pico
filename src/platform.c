@@ -10,9 +10,6 @@
 #include "sound.h"
 #include "input.h"
 
-/** TODO: remove definition, and make target from makefile */
-#define USE_RAYLIB
-
 #ifdef USE_RAYLIB
 #include "raylib.h"
 
@@ -239,7 +236,7 @@ void platform_draw_pixel(uint8_t x, uint8_t y, bool color)
  * @brief PLATFORM play audio effect through speaker.
  * 
  */
-void platform_play_audio(void)
+void platform_audio_play(void)
 {
     /* Add definition here */
 }
@@ -272,7 +269,6 @@ void platform_delay(uint32_t ms)
 {
     /* Add definition here */
 }
-
 #endif /* USE_RAYLIB */
 
 /* -------------------------------------------------------------------------- */
