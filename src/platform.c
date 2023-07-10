@@ -40,6 +40,10 @@ void platform_audio_callback(void *buffer, unsigned int frames);
 
 /* Function definitions ----------------------------------------------------- */
 
+/**
+ * @brief PLATFORM initialize user-defined functions.
+ * 
+ */
 void platform_init(void)
 {
     /* Window initialization */
@@ -60,16 +64,31 @@ void platform_init(void)
     clock_t0 = clock();
 }
 
+/**
+ * @brief PLATFORM start drawing a new frame.
+ * 
+ */
 void platform_draw_start(void)
 {
     BeginDrawing();
 }
 
+/**
+ * @brief PLATFORM stop drawing current frame.
+ * 
+ */
 void platform_draw_stop(void)
 {
     EndDrawing();
 }
 
+/**
+ * @brief PLATFORM write pixel value to screen.
+ * 
+ * @param x     X coordinate
+ * @param y     Y coordinate
+ * @param color Pixel color
+ */
 void platform_draw_pixel(uint8_t x, uint8_t y, bool color)
 {
 #if (WINDOW_ZOOM > 1)
@@ -86,12 +105,26 @@ void platform_draw_pixel(uint8_t x, uint8_t y, bool color)
 #endif
 }
 
+/**
+ * @brief PLATFORM play audio effect through speaker.
+ * 
+ */
 void platform_audio_play(void)
 {
     old_frequency = 0;
     ResumeAudioStream(audio_stream);
 }
 
+/**
+ * @brief PLATFORM play audio callback needed for concurrent execution.
+ * 
+ * NOTE: This callback is specifically required by Raylib, in a microcontroller
+ * setting, this callback may be an Interrupt Service Routine (ISR) that
+ * autonomously drives the speaker.
+ * 
+ * @param buffer Sample buffer
+ * @param frames Number of samples
+ */
 void platform_audio_callback(void *buffer, unsigned int frames)
 {
     // Get next frequency to play
@@ -117,6 +150,10 @@ void platform_audio_callback(void *buffer, unsigned int frames)
     old_frequency = frequency;
 }
 
+/**
+ * @brief PLATFORM read user controls and update button state.
+ * 
+ */
 void platform_input_update(void)
 {
     if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W))
@@ -133,11 +170,21 @@ void platform_input_update(void)
         input_button = SELECT;
 }
 
+/**
+ * @brief PLATFORM get time in milliseconds from start of execution.
+ * 
+ * @return uint32_t Start time in milliseconds
+ */
 uint32_t platform_millis(void)
 {
     return ((clock() - clock_t0) * 1000) / CLOCKS_PER_SEC;
 }
 
+/**
+ * @brief PLATFORM apply blocking delay in milliseconds.
+ * 
+ * @param ms Delay in milliseconds
+ */
 void platform_delay(uint32_t ms)
 {
     uint32_t t0 = platform_millis();
@@ -147,38 +194,83 @@ void platform_delay(uint32_t ms)
     };
 }
 
-#else
+#else /* User-defined platform functions ------------------------------------ */
 
+/**
+ * @brief PLATFORM initialize user-defined functions.
+ * 
+ */
 void platform_init(void)
 {
+    /* Add definition here */
 }
 
+/**
+ * @brief PLATFORM start drawing a new frame.
+ * 
+ */
 void platform_draw_start(void)
 {
+    /* Add definition here */
 }
 
+/**
+ * @brief PLATFORM stop drawing current frame.
+ * 
+ */
 void platform_draw_stop(void)
 {
+    /* Add definition here */
 }
 
+/**
+ * @brief PLATFORM write pixel value to screen.
+ * 
+ * @param x     X coordinate
+ * @param y     Y coordinate
+ * @param color Pixel color
+ */
 void platform_draw_pixel(uint8_t x, uint8_t y, bool color)
 {
+    /* Add definition here */
 }
 
+/**
+ * @brief PLATFORM play audio effect through speaker.
+ * 
+ */
 void platform_play_audio(void)
 {
+    /* Add definition here */
 }
 
+/**
+ * @brief PLATFORM read user controls and update button state.
+ * 
+ */
 void platform_input_update(void)
 {
+    /* Add definition here */
 }
 
+/**
+ * @brief PLATFORM get time in milliseconds from start of execution.
+ * 
+ * @return uint32_t Start time in milliseconds
+ */
 uint32_t platform_millis(void)
 {
+    /* Add definition here */
 }
 
+/**
+ * @brief PLATFORM apply blocking delay in milliseconds.
+ * 
+ * @param ms Delay in milliseconds
+ */
 void platform_delay(uint32_t ms)
 {
+    /* Add definition here */
 }
 
 #endif /* USE_RAYLIB */

@@ -5,13 +5,22 @@
 
 /* Definitions -------------------------------------------------------------- */
 
+/* Frame rate */
 #define FPS 15
-#define FRAME_TIME (1000.0f / FPS) // Desired time per frame in ms (66.666666 is ~15 fps)
-#define RES_DIVIDER 2              // Higher values will result in lower horizontal resolution when rasterize and lower process and memory usage
-                                   // Lower will require more process and memory, but looks nicer
-#define Z_RES_DIVIDER 2            // Zbuffer resolution divider. We sacrifice resolution to save memory
-#define DISTANCE_MULTIPLIER 20     // Distances are stored as uint8_t, multiplying the distance we can obtain more precision taking care
-                                   // of keep numbers inside the type range. Max is 256 / MAX_RENDER_DEPTH
+#define FRAME_TIME (1000.0f / FPS)
+
+/* Higher values will result in lower horizontal resolution when rasterize and
+ * lower process and memory usage. Lower will require more process and memory,
+ * but looks nicer. */
+#define RES_DIVIDER 2
+
+/* Zbuffer resolution divider. We sacrifice resolution to save memory. */
+#define Z_RES_DIVIDER 2
+
+/* Distances are stored as uint8_t, multiplying the distance we can obtain more
+ * precision taking care of keep numbers inside the type range.
+ * Max is 256 / MAX_RENDER_DEPTH */
+#define DISTANCE_MULTIPLIER 20
 #define MAX_RENDER_DEPTH 12
 #define MAX_SPRITE_DEPTH 8
 
@@ -51,7 +60,7 @@
 #define ENEMY_COLLIDER_DIST 4    // * DISTANCE_MULTIPLIER
 #define FIREBALL_COLLIDER_DIST 2 // * DISTANCE_MULTIPLIER
 #define ENEMY_MELEE_DIST 6       // * DISTANCE_MULTIPLIER
-#define WALL_COLLIDER_DIST .2
+#define WALL_COLLIDER_DIST 0.2f
 
 #define ENEMY_MELEE_DAMAGE 8
 #define ENEMY_FIREBALL_DAMAGE 20

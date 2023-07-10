@@ -54,7 +54,7 @@ void sound_play(const uint8_t *snd, uint8_t len)
  * 2. http://www.shikadi.net/moddingwiki/Inverse_Frequency_Sound_format
  * 3. http://www.shikadi.net/moddingwiki/AudioT_Format
  *
- * @return uint16_t
+ * @return uint16_t Next sound frequency
  */
 uint16_t sound_get_frequency(void)
 {

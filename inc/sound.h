@@ -50,8 +50,31 @@ static const uint8_t medkit_snd[] = {
 
 /* Function prototypes ------------------------------------------------------ */
 
+/**
+ * @brief SOUND initialize audio player state.
+ *
+ */
 void sound_init(void);
+
+/**
+ * @brief SOUND update sound and execute platform audio player.
+ *
+ * @param snd Sound byte array
+ * @param len Byte length of sound
+ */
 void sound_play(const uint8_t *snd, uint8_t len);
+
+/**
+ * @brief SOUND get a new frequency from current sound every (1/140)s period,
+ * otherwise return the same one again. Return zero if sound is finished.
+ *
+ * NOTE: Sounds use inverse frequency format, for more information see:
+ * 1. http://fabiensanglard.net/gebbwolf3d_v2.1.pdf chapter 4.9.5
+ * 2. http://www.shikadi.net/moddingwiki/Inverse_Frequency_Sound_format
+ * 3. http://www.shikadi.net/moddingwiki/AudioT_Format
+ *
+ * @return uint16_t Next sound frequency
+ */
 uint16_t sound_get_frequency(void);
 
 #endif /* SOUND_H */

@@ -9,7 +9,7 @@
 
 /* Definitions -------------------------------------------------------------- */
 
-#define bmp_font_width 24 // in bytes
+#define bmp_font_width 24
 #define bmp_font_height 6
 #define CHAR_MAP " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ.,-_(){}[]#"
 #define CHAR_WIDTH 4
@@ -262,8 +262,6 @@ static const uint8_t bmp_items_mask[] = {
     0x1f, 0xfc, 0x3f, 0xfc, 0x3f, 0xfc, 0x3f, 0xfc, 0x3f, 0xfc, 0x3f,
     0xfc, 0x07, 0xfc, 0x03, 0xf8, 0x00, 0x00, 0x00, 0x00};
 
-// Gradient for lighting.
-// Note: Width and height are in bytes
 #define GRADIENT_WIDTH 2
 #define GRADIENT_HEIGHT 8
 #define GRADIENT_COUNT 8

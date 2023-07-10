@@ -19,7 +19,6 @@
 #include "utils.h"
 
 /** TODO: verify if using pointers instead of returning struct is faster */
-/** TODO: remove all raylib dependencies */
 /** TODO: integrate doom brutality expansion */
 
 /* Data types --------------------------------------------------------------- */
@@ -161,7 +160,7 @@ void game_init_level_scene(const uint8_t level[])
  * @param level Level byte map
  * @param x     X coordinate
  * @param y     Y coordinate
- * @return EntityType
+ * @return EntityType Entity type
  */
 EntityType game_get_level_entity(const uint8_t level[], uint8_t x, uint8_t y)
 {
@@ -179,8 +178,7 @@ EntityType game_get_level_entity(const uint8_t level[], uint8_t x, uint8_t y)
  * @brief GAME check if an entity with given UID is already spawned.
  *
  * @param uid Entity UID number
- * @return true
- * @return false
+ * @return bool Entity is spawned
  */
 bool game_is_entity_spawned(EntityUID uid)
 {
@@ -197,8 +195,7 @@ bool game_is_entity_spawned(EntityUID uid)
  * @brief GAME check if a static entity with given UID is already spawned.
  *
  * @param uid Entity UID number
- * @return true
- * @return false
+ * @return bool Static entity is spawned
  */
 bool game_is_static_entity_spawned(EntityUID uid)
 {
@@ -332,7 +329,7 @@ void game_remove_static_entity(EntityUID uid)
  * @param rel_x      X relative direction
  * @param rel_y      Y relative direction
  * @param only_walls Check only walls collisions
- * @return EntityUID
+ * @return EntityUID Entity UID number
  */
 EntityUID game_detect_collision(const uint8_t level[], Coords *pos, float rel_x,
                                 float rel_y, bool only_walls)
@@ -367,7 +364,7 @@ EntityUID game_detect_collision(const uint8_t level[], Coords *pos, float rel_x,
             continue;
 
         Coords new_coords = {entity[i].pos.x - rel_x, entity[i].pos.y - rel_y};
-        uint8_t distance = coords_compute_distance(pos, &new_coords);
+        uint8_t distance = coords_get_distance(pos, &new_coords);
 
         // Check distance and if it's getting closer
         if ((distance < ENEMY_COLLIDER_DIST) &&
@@ -386,7 +383,7 @@ EntityUID game_detect_collision(const uint8_t level[], Coords *pos, float rel_x,
  * @param rel_x      X relative direction
  * @param rel_y      Y relative direction
  * @param only_walls Check only walls collisions
- * @return EntityUID
+ * @return EntityUID Entity UID number
  */
 EntityUID game_update_position(const uint8_t level[], Coords *pos, float rel_x,
                                float rel_y, bool only_walls)
@@ -448,7 +445,7 @@ void game_update_entities(const uint8_t level[])
     while (i < num_entities)
     {
         // Update distance
-        entity[i].distance = coords_compute_distance(
+        entity[i].distance = coords_get_distance(
             &(player.pos), &(entity[i].pos));
 
         // Run the timer. Works with actual frames.
@@ -702,7 +699,7 @@ void game_render_map(const uint8_t level[], float view_height)
                 if ((block == E_ENEMY) || (block & 0b00001000))
                 {
                     // Check that it's close to the player
-                    if (coords_compute_distance(&(player.pos), &map_coords) <
+                    if (coords_get_distance(&(player.pos), &map_coords) <
                         MAX_ENTITY_DISTANCE)
                     {
                         EntityUID uid = entities_get_uid(block, map_x, map_y);
@@ -779,7 +776,7 @@ void game_sort_entities(void)
  * @brief GAME translate 2D map coordinates into camera coordinates.
  *
  * @param pos 2D map coordinates
- * @return Coords
+ * @return Coords Camera coordinates
  */
 Coords game_translate_into_view(Coords *pos)
 {

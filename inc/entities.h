@@ -75,11 +75,33 @@ typedef struct
 
 /* Function prototypes ------------------------------------------------------ */
 
+/**
+ * @brief ENTITIES get UID from entity type and location.
+ * 
+ * @param type Entity type
+ * @param x    X coordinate
+ * @param y    Y coordinate
+ * @return EntityUID Entity UID number
+ */
 EntityUID entities_get_uid(EntityType type, uint8_t x, uint8_t y);
+
+/**
+ * @brief ENTITIES get entity type from UID.
+ * 
+ * @param uid Entity UID
+ * @return EntityType Entity type
+ */
 EntityType entities_get_type(EntityUID uid);
 
 /* Function definitions ----------------------------------------------------- */
 
+/**
+ * @brief ENTITIES create player entity struct.
+ * 
+ * @param x X coordinate
+ * @param y Y coordinate
+ * @return Player Player entity instance
+ */
 static inline Player entities_create_player(uint8_t x, uint8_t y)
 {
     return (Player){
@@ -91,6 +113,13 @@ static inline Player entities_create_player(uint8_t x, uint8_t y)
         .keys = 0};
 }
 
+/**
+ * @brief ENTITIES create enemy entity struct.
+ * 
+ * @param x X coordinate
+ * @param y Y coordinate
+ * @return Entity Enemy entity instance
+ */
 static inline Entity entities_create_enemy(uint8_t x, uint8_t y)
 {
     return (Entity){
@@ -102,6 +131,13 @@ static inline Entity entities_create_enemy(uint8_t x, uint8_t y)
         .timer = 0};
 }
 
+/**
+ * @brief ENTITIES create medkit entity struct.
+ * 
+ * @param x X coordinate
+ * @param y Y coordinate
+ * @return Entity Medkit entity instance
+ */
 static inline Entity entities_create_medkit(uint8_t x, uint8_t y)
 {
     return (Entity){
@@ -113,6 +149,13 @@ static inline Entity entities_create_medkit(uint8_t x, uint8_t y)
         .timer = 0};
 }
 
+/**
+ * @brief ENTITIES create key entity struct.
+ * 
+ * @param x X coordinate
+ * @param y Y coordinate
+ * @return Entity Key entity instance
+ */
 static inline Entity entities_create_key(uint8_t x, uint8_t y)
 {
     return (Entity){
@@ -124,6 +167,14 @@ static inline Entity entities_create_key(uint8_t x, uint8_t y)
         .timer = 0};
 }
 
+/**
+ * @brief ENTITIES create fireball entity struct.
+ * 
+ * @param x   X coordinate
+ * @param y   Y coordinate
+ * @param dir Angle
+ * @return Entity Fireball entity instance
+ */
 static inline Entity entities_create_fireball(uint8_t x, uint8_t y, uint8_t dir)
 {
     return (Entity){

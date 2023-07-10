@@ -10,10 +10,11 @@
 
 /* Global variables --------------------------------------------------------- */
 
-float delta_time;
-uint32_t last_frame_time;
 uint8_t zbuffer[ZBUFFER_SIZE];
 uint8_t display_buf[DISPLAY_BUF_SIZE];
+
+float delta_time;
+static uint32_t last_frame_time;
 
 /* Function definitions ----------------------------------------------------- */
 
@@ -68,39 +69,38 @@ void display_invert(void)
 /**
  * @brief DISPLAY apply fading effect to display buffer.
  *
- * @param intensity
- * @param color
+ * @param i     Intensity
+ * @param color Pixel color
  */
-void display_fade(uint8_t intensity, bool color)
+void display_fade(uint8_t i, bool color)
 {
     for (uint8_t x = 0; x < SCREEN_WIDTH; x++)
     {
         for (uint8_t y = 0; y < SCREEN_HEIGHT; y++)
         {
-            if (display_get_gradient(x, y, intensity))
+            if (display_get_gradient(x, y, i))
                 display_draw_pixel(x, y, color, false);
         }
     }
 }
 
 /**
- * @brief DISPLAY get pixel gradient intensity pattern value.
+ * @brief DISPLAY get pixel gradient i pattern value.
  *
- * @param x         X coordinate
- * @param y         Y coordinate
- * @param intensity Brightness
- * @return true
- * @return false
+ * @param x X coordinate
+ * @param y Y coordinate
+ * @param i Intensity
+ * @return bool Pixel color
  */
-bool display_get_gradient(uint8_t x, uint8_t y, uint8_t intensity)
+bool display_get_gradient(uint8_t x, uint8_t y, uint8_t i)
 {
-    if (intensity == 0)
+    if (i == 0)
         return 0;
-    if (intensity >= GRADIENT_COUNT - 1)
+    if (i >= GRADIENT_COUNT - 1)
         return 1;
 
     // Gradient index + y byte offset + x byte offset
-    uint8_t index = (MAX(0, MIN(GRADIENT_COUNT - 1, intensity)) *
+    uint8_t index = (MAX(0, MIN(GRADIENT_COUNT - 1, i)) *
                      GRADIENT_WIDTH * GRADIENT_HEIGHT) +
                     (y * GRADIENT_WIDTH % (GRADIENT_WIDTH * GRADIENT_HEIGHT)) +
                     (x / GRADIENT_HEIGHT % GRADIENT_WIDTH);
@@ -126,7 +126,7 @@ void display_delay_fps(void)
 /**
  * @brief DISPLAY get current FPS value.
  *
- * @return float
+ * @return float FPS value
  */
 float display_get_fps(void)
 {
@@ -159,7 +159,7 @@ void display_draw_stop(void)
  *
  * @param x       X coordinate
  * @param y       Y coordinate
- * @param color   Color value
+ * @param color   Pixel color
  * @param raycast Check raycast rendering
  */
 void display_draw_pixel(int16_t x, int16_t y, bool color, bool raycast)
@@ -180,8 +180,7 @@ void display_draw_pixel(int16_t x, int16_t y, bool color, bool raycast)
  *
  * @param x X coordinate
  * @param y Y coordinate
- * @return true
- * @return false
+ * @return bool Pixel color
  */
 bool display_get_pixel(int16_t x, int16_t y)
 {
@@ -214,7 +213,7 @@ void display_draw_byte(uint8_t x, uint8_t y, uint8_t byte)
  *
  * @param x X coordinate
  * @param y Y coordinate
- * @return uint8_t
+ * @return uint8_t Display buffer raw byte
  */
 uint8_t display_get_byte(uint8_t x, uint8_t y)
 {
@@ -228,7 +227,7 @@ uint8_t display_get_byte(uint8_t x, uint8_t y)
  * @param y     Y coordinate
  * @param w     Width
  * @param h     Height
- * @param color Color value
+ * @param color Pixel color
  */
 void display_draw_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, bool color)
 {
@@ -246,13 +245,12 @@ void display_draw_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, bool color)
  *
  * NOTE: For raycasting only, Affected by RES_DIVIDER.
  *
- * @param x         X coordinate
- * @param start_y   Y start coordinate
- * @param end_y     Y end coordinate
- * @param intensity Brightness
+ * @param x       X coordinate
+ * @param start_y Y start coordinate
+ * @param end_y   Y end coordinate
+ * @param i       Intensity
  */
-void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y,
-                        uint8_t intensity)
+void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y, uint8_t i)
 {
     int8_t lower_y = MAX(MIN(start_y, end_y), 0);
     int8_t higher_y = MIN(MAX(start_y, end_y), RENDER_HEIGHT - 1);
@@ -267,7 +265,7 @@ void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y,
         while (y <= higher_y)
         {
             bp = y % 8;
-            b |= display_get_gradient(x + c, y, intensity) << bp;
+            b |= display_get_gradient(x + c, y, i) << bp;
 
             if (bp == 7)
             {
@@ -290,7 +288,7 @@ void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y,
         for (uint8_t c = 0; c < RES_DIVIDER; c++)
         {
             // Bypass black pixels
-            if (display_get_gradient(x + c, y, intensity))
+            if (display_get_gradient(x + c, y, i))
                 display_draw_pixel(x + c, y, 1, true);
         }
 
