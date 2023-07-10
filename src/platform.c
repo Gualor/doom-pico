@@ -8,6 +8,7 @@
 #include "platform.h"
 #include "constants.h"
 #include "sound.h"
+#include "input.h"
 
 /** TODO: remove definition, and make target from makefile */
 #define USE_RAYLIB
@@ -116,6 +117,22 @@ void platform_audio_callback(void *buffer, unsigned int frames)
     old_frequency = frequency;
 }
 
+void platform_input_update(void)
+{
+    if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W))
+        input_button = UP;
+    else if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S))
+        input_button = DOWN;
+    else if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A))
+        input_button = LEFT;
+    else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D))
+        input_button = RIGHT;
+    else if (IsKeyDown(KEY_SPACE))
+        input_button = Y;
+    else if (IsKeyDown(KEY_ESCAPE))
+        input_button = SELECT;
+}
+
 uint32_t platform_millis(void)
 {
     return ((clock() - clock_t0) * 1000) / CLOCKS_PER_SEC;
@@ -149,6 +166,10 @@ void platform_draw_pixel(uint8_t x, uint8_t y, bool color)
 }
 
 void platform_play_audio(void)
+{
+}
+
+void platform_input_update(void)
 {
 }
 

@@ -36,6 +36,10 @@ bool input_right(void);
 bool input_fire(void);
 bool input_exit(void);
 
+/* Global variables --------------------------------------------------------- */
+
+extern volatile uint16_t input_button;
+
 #endif /* INPUT_H */
 
 /* -------------------------------------------------------------------------- */

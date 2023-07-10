@@ -4,67 +4,53 @@
 
 #include "input.h"
 #include "constants.h"
-
-/** TODO: Remove raylib dependencies from here */
-#include "raylib.h"
+#include "platform.h"
 
 /* Global variables --------------------------------------------------------- */
 
-static volatile uint16_t buttons;
+volatile uint16_t input_button;
 
 /* Function definitions ----------------------------------------------------- */
 
 void input_init(void)
 {
-    buttons = 0;
+    input_button = 0;
 }
 
 void input_update(void)
 {
-    buttons = 0;
-
-    if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W))
-        buttons = UP;
-    else if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S))
-        buttons = DOWN;
-    else if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A))
-        buttons = LEFT;
-    else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D))
-        buttons = RIGHT;
-    else if (IsKeyDown(KEY_SPACE))
-        buttons = Y;
-    else if (IsKeyDown(KEY_ESCAPE))
-        buttons = SELECT;
+    input_button = 0;
+	platform_input_update();
 }
 
 bool input_left(void)
 {
-    return buttons & LEFT;
+    return input_button & LEFT;
 };
 
 bool input_right(void)
 {
-    return buttons & RIGHT;
+    return input_button & RIGHT;
 };
 
 bool input_up(void)
 {
-    return buttons & UP;
+    return input_button & UP;
 };
 
 bool input_down(void)
 {
-    return buttons & DOWN;
+    return input_button & DOWN;
 };
 
 bool input_fire(void)
 {
-    return buttons & Y;
+    return input_button & Y;
 };
 
 bool input_exit(void)
 {
-    return buttons & SELECT;
+    return input_button & SELECT;
 }
 
 /* -------------------------------------------------------------------------- */
