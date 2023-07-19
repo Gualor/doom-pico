@@ -7,19 +7,21 @@ RAYLIB_ARCHIVE=""
 
 rm -rf "${RAYLIB_DIR}"
 if [[ "${MSYSTEM}" == "MINGW"* ]]; then
-	echo "Downloading Raylib Mingw release..."
-	RAYLIB_ARCHIVE="raylib-${RAYLIB_VERSION}_win64_mingw-w64.zip"
-	curl -LO "${BASE_URL}/${RAYLIB_ARCHIVE}"
-	unzip "${RAYLIB_ARCHIVE}"
-	mv "${RAYLIB_ARCHIVE%.zip}" "${RAYLIB_DIR}"
+    echo "Downloading Raylib Mingw release..."
+    RAYLIB_ARCHIVE="raylib-${RAYLIB_VERSION}_win64_mingw-w64.zip"
+    curl -LO "${BASE_URL}/${RAYLIB_ARCHIVE}"
+    unzip "${RAYLIB_ARCHIVE}"
+    mv "${RAYLIB_ARCHIVE%.zip}" "${RAYLIB_DIR}"
+    find "${RAYLIB_DIR}/lib/" -name "*dll" -delete
 elif [ "$(uname -s)" == "Linux" ]; then
-	echo "Downloading Raylib Linux release..."
-	RAYLIB_ARCHIVE="raylib-${RAYLIB_VERSION}_linux_amd64.tar.gz"
-	curl -LO "${BASE_URL}/${RAYLIB_ARCHIVE}"
-	tar -xzf "${RAYLIB_ARCHIVE}"
-	mv "${RAYLIB_ARCHIVE%.tar.gz}" "${RAYLIB_DIR}"
+    echo "Downloading Raylib Linux release..."
+    RAYLIB_ARCHIVE="raylib-${RAYLIB_VERSION}_linux_amd64.tar.gz"
+    curl -LO "${BASE_URL}/${RAYLIB_ARCHIVE}"
+    tar -xzf "${RAYLIB_ARCHIVE}"
+    mv "${RAYLIB_ARCHIVE%.tar.gz}" "${RAYLIB_DIR}"
+    find "${RAYLIB_DIR}/lib/" -name "*.so*" -delete
 else
-	echo "Platform currently not supported."
-	exit 1
+    echo "Platform currently not supported."
+    exit 1
 fi
 rm -rf "${RAYLIB_ARCHIVE}"
