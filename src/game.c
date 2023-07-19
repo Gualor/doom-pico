@@ -26,8 +26,11 @@
 typedef enum
 {
     SCENE_INTRO,
-    SCENE_LEVEL1,
-    /* Add more levels here */
+    SCENE_SCORE,
+    SCENE_MUSIC,
+    SCENE_DIFFICULTY,
+    SCENE_LEVEL,
+    SCENE_STORY
 } GameScene;
 
 /* Function prototypes ------------------------------------------------------ */
@@ -60,7 +63,7 @@ static void game_fire_shootgun(void);
 static Coords game_translate_into_view(Coords *pos);
 static void game_render_map(const uint8_t level[], float view_height);
 static void game_render_entities(float view_height);
-static void game_render_gun(uint8_t gun_pos, float jogging);
+void game_render_gun(uint8_t gun_pos, float amount_jogging, bool gun_fired, uint8_t r1);
 static void game_render_hud(void);
 
 /* Scenes */
@@ -68,32 +71,60 @@ static void game_jump_to_scene(GameScene scene);
 static void game_run_intro_scene(void);
 static void game_run_level_scene(void);
 
+void updateHud(void); // temporary
+
 /* Global variables --------------------------------------------------------- */
 
-/* Entities */
+static bool exit_scene = false;
+static bool invert_screen = false;
+static uint8_t flash_screen = 0;
+static uint8_t z = 6;
+static bool coll = 0;
+static uint8_t jump = 0;
+static uint8_t jump_height = 0;
+static uint8_t vel = 1;
+static uint8_t difficulty = 1;
+static uint8_t noclip = 0;
+static bool m = true;
+static uint8_t rc1 = 0;
+static int16_t a = 0;
+static uint8_t enemyCount2 = 0;
+static uint8_t enemyGoal2 = 8;
+// game
+// player and entities
 static Player player;
 static Entity entity[MAX_ENTITIES];
-static uint8_t num_entities;
 static StaticEntity static_entity[MAX_STATIC_ENTITIES];
-static uint8_t num_static_entities;
+static uint8_t num_entities = 0;
+static uint8_t num_static_entities = 0;
+static uint8_t x = 0;
+static uint8_t enemyCount = 0;
+static uint8_t del = 0;
+static bool levelID = false;
+static uint8_t enemyGoal = 20;
+static bool fade_e = true;
+static bool debug = false;
+static uint8_t r = 0;
+static bool reload1 = false;
+static int16_t score;
+static uint8_t k;
+static int8_t mid = 1;
+static bool bss = false;
+static bool mc = false;
+// init
+static bool gun_fired = false;
+static bool walkSoundToggle = false;
+static uint8_t gun_pos = 0;
+static float rot_speed;
+static float old_dir_x;
+static float old_plane_x;
+static float view_height;
+static float jogging;
+static uint8_t fade = GRADIENT_COUNT - 1;
 
-/* Graphics */
-static bool flash_screen;
-static uint8_t fade_screen;
-
-/* Sound effects */
-static bool walk_sound_toggle;
-
-/* Scene */
 static void (*game_run_scene)(void);
 
-/* Function definitions ----------------------------------------------------- */
-
-/**
- * @brief GAME jump to another scene at the end of the current frame.
- *
- * @param scene Game scene
- */
+// Jump to another scene
 void game_jump_to_scene(GameScene scene)
 {
     switch (scene)
@@ -102,8 +133,8 @@ void game_jump_to_scene(GameScene scene)
         game_run_scene = game_run_intro_scene;
         break;
 
-    case SCENE_LEVEL1:
-        game_init_level_scene(level_1);
+    case SCENE_LEVEL:
+        game_init_level_scene(E1M1);
         game_run_scene = game_run_level_scene;
         break;
 
@@ -113,25 +144,28 @@ void game_jump_to_scene(GameScene scene)
     }
 }
 
-/**
- * @brief GAME initialize level state.
- *
- * @param level Level byte map
- */
+// Finds the player in the map
 void game_init_level_scene(const uint8_t level[])
 {
-    // Initialize game entities
-    memset(entity, 0x00, sizeof(Entity) * MAX_ENTITIES);
-    memset(static_entity, 0x00, sizeof(StaticEntity) * MAX_STATIC_ENTITIES);
-    num_entities = 0;
-    num_static_entities = 0;
+    gun_fired = false;
+    walkSoundToggle = false;
+    gun_pos = 0;
+    rot_speed;
+    old_dir_x;
+    old_plane_x;
+    view_height;
+    jogging;
+    fade = GRADIENT_COUNT - 1;
 
-    // Initialize screen effects
-    flash_screen = false;
-    fade_screen = GRADIENT_COUNT - 1;
-
-    // Initialize audio effects
-    walk_sound_toggle = false;
+    mc = false;
+    if (levelID == false)
+    {
+        game_init_level_scene(E1M1);
+    }
+    if (levelID == true)
+    {
+        game_init_level_scene(E1M2);
+    }
 
     // Initialize game scene callback
     game_run_scene = game_run_intro_scene;
@@ -154,14 +188,6 @@ void game_init_level_scene(const uint8_t level[])
     }
 }
 
-/**
- * @brief GAME get entity type from level byte map.
- *
- * @param level Level byte map
- * @param x     X coordinate
- * @param y     Y coordinate
- * @return EntityType Entity type
- */
 EntityType game_get_level_entity(const uint8_t level[], uint8_t x, uint8_t y)
 {
     if ((x < 0) || (x >= LEVEL_WIDTH) || (y < 0) || (y >= LEVEL_HEIGHT))
@@ -174,12 +200,6 @@ EntityType game_get_level_entity(const uint8_t level[], uint8_t x, uint8_t y)
     return byte & 0x0f;
 }
 
-/**
- * @brief GAME check if an entity with given UID is already spawned.
- *
- * @param uid Entity UID number
- * @return bool Entity is spawned
- */
 bool game_is_entity_spawned(EntityUID uid)
 {
     for (uint8_t i = 0; i < num_entities; i++)
@@ -191,12 +211,6 @@ bool game_is_entity_spawned(EntityUID uid)
     return false;
 }
 
-/**
- * @brief GAME check if a static entity with given UID is already spawned.
- *
- * @param uid Entity UID number
- * @return bool Static entity is spawned
- */
 bool game_is_static_entity_spawned(EntityUID uid)
 {
     for (uint8_t i = 0; i < num_static_entities; i++)
@@ -208,13 +222,6 @@ bool game_is_static_entity_spawned(EntityUID uid)
     return false;
 }
 
-/**
- * @brief GAME spawn a new entity at a given location.
- *
- * @param type Entity type
- * @param x    X coordinate
- * @param y    Y coordinate
- */
 void game_spawn_entity(EntityType type, uint8_t x, uint8_t y)
 {
     // Limit the number of spawned entities
@@ -242,12 +249,6 @@ void game_spawn_entity(EntityType type, uint8_t x, uint8_t y)
     }
 }
 
-/**
- * @brief GAME spawn a fireball at a given location.
- *
- * @param x X coordinate
- * @param y Y coordinate
- */
 void game_spawn_fireball(float x, float y)
 {
     // Limit the number of spawned entities
@@ -271,11 +272,6 @@ void game_spawn_fireball(float x, float y)
     num_entities++;
 }
 
-/**
- * @brief GAME remove an entity.
- *
- * @param uid Entity UID number
- */
 void game_remove_entity(EntityUID uid)
 {
     uint8_t i = 0;
@@ -296,11 +292,33 @@ void game_remove_entity(EntityUID uid)
     }
 }
 
-/**
- * @brief GAME remove a static entity.
- *
- * @param uid Entity UID number
- */
+void clearEntities()
+{
+    uint8_t i = num_entities;
+    bool found;
+    while (found == false)
+    {
+        i--;
+        if (entity[i].state != S_DEAD && entities_get_type(entity[i].uid) != E_ENEMY)
+        {
+            found = true;
+        }
+    }
+    i--;
+    while (entity[i].state != S_DEAD && entities_get_type(entity[i].uid) != E_ENEMY && found == true)
+    {
+        i--;
+        if (i == 0)
+        {
+            break;
+        }
+    }
+    if (i > 0 && entity[i].state == S_DEAD)
+    {
+        game_remove_entity(entity[i].uid);
+    }
+}
+
 void game_remove_static_entity(EntityUID uid)
 {
     uint8_t i = 0;
@@ -321,16 +339,6 @@ void game_remove_static_entity(EntityUID uid)
     }
 }
 
-/**
- * @brief GAME detect collision between entities and level blocks.
- *
- * @param level      Level byte map
- * @param pos        Position to be checked
- * @param rel_x      X relative direction
- * @param rel_y      Y relative direction
- * @param only_walls Check only walls collisions
- * @return EntityUID Entity UID number
- */
 EntityUID game_detect_collision(const uint8_t level[], Coords *pos, float rel_x,
                                 float rel_y, bool only_walls)
 {
@@ -339,10 +347,31 @@ EntityUID game_detect_collision(const uint8_t level[], Coords *pos, float rel_x,
     uint8_t round_y = pos->y + rel_y;
     uint8_t block = game_get_level_entity(level, round_x, round_y);
 
-    if (block == E_WALL)
+    if (block == E_WALL & debug == false)
     {
         sound_play(hit_wall_snd, HIT_WALL_SND_LEN);
         return entities_get_uid(block, round_x, round_y);
+    }
+    else if (block == E_DOOR && player.secret == false)
+    {
+        z = 8;
+        player.secret = true;
+        updateHud();
+        sound_play(s_snd, S_SND_LEN);
+    }
+    else if (block == E_DOOR2 && player.secret2 == false)
+    {
+        z = 8;
+        player.secret2 = true;
+        updateHud();
+        sound_play(s_snd, S_SND_LEN);
+    }
+    else if (block == E_DOOR3 && player.secret3 == false)
+    {
+        z = 8;
+        player.secret3 = true;
+        sound_play(s_snd, S_SND_LEN);
+        updateHud();
     }
 
     if (only_walls)
@@ -375,16 +404,97 @@ EntityUID game_detect_collision(const uint8_t level[], Coords *pos, float rel_x,
     return UID_NULL;
 }
 
-/**
- * @brief GAME update position if possible, otherwise return collided uid.
- *
- * @param level      Level byte map
- * @param pos        Position to be checked
- * @param rel_x      X relative direction
- * @param rel_y      Y relative direction
- * @param only_walls Check only walls collisions
- * @return EntityUID Entity UID number
- */
+// Shoot
+void game_fire_shootgun(void)
+{
+    if (player.keys != 0)
+    {
+        z = 3;
+        sound_play(shoot_snd, SHOOT_SND_LEN);
+        for (uint8_t i = 0; i < num_entities; i++)
+        {
+            // Shoot only ALIVE enemies
+            if (entities_get_type(entity[i].uid) != E_ENEMY || entity[i].state == S_DEAD || entity[i].state == S_HIDDEN)
+            {
+                continue;
+            }
+            Coords transform = game_translate_into_view(&(entity[i].pos));
+            if (fabsf(transform.x) < 20 && transform.y > 0)
+            {
+                uint8_t damage = MIN(GUN_MAX_DAMAGE, GUN_MAX_DAMAGE / (fabsf(transform.x) * entity[i].distance) / 5);
+                if (jump == 1 || jump == 2)
+                {
+                    damage = damage / 3;
+                }
+                if (difficulty == 1)
+                {
+                    damage = damage * 1.5;
+                }
+                else if (difficulty == 2)
+                {
+                    damage = damage;
+                }
+                else
+                {
+                    damage = damage * 0.70;
+                }
+                if (damage > 0)
+                {
+                    entity[i].health = MAX(0, entity[i].health - damage / difficulty);
+                    entity[i].state = S_HIT;
+                    entity[i].timer = 2;
+                }
+            }
+        }
+    }
+    else
+    {
+        z = 3;
+        sound_play(melee_snd, MELEE_SND_LEN);
+        for (uint8_t i = 0; i < num_entities; i++)
+        {
+            if (entity[i].distance <= ENEMY_MELEE_DIST)
+            {
+                // Shoot only ALIVE enemies
+                if (entities_get_type(entity[i].uid) != E_ENEMY || entity[i].state == S_DEAD || entity[i].state == S_HIDDEN)
+                {
+                    continue;
+                }
+                Coords transform = game_translate_into_view(&(entity[i].pos));
+                if (fabsf(transform.x) < 20 && transform.y > 0)
+                {
+                    uint8_t damage = MIN(GUN_MAX_DAMAGE, GUN_MAX_DAMAGE / (fabsf(transform.x) * entity[i].distance) / 5);
+                    if (jump == 1 || jump == 2)
+                    {
+                        damage = damage / 3;
+                    }
+                    if (difficulty == 1)
+                    {
+                        damage = damage + damage / 4.0;
+                    }
+                    else if (difficulty == 2)
+                    {
+                        damage = damage - damage * 0.1;
+                    }
+                    else
+                    {
+                        damage = damage * 0.60;
+                    }
+                    if (damage > 0)
+                    {
+                        entity[i].health = MAX(0, entity[i].health - damage / difficulty);
+                        entity[i].state = S_HIT;
+                        entity[i].timer = 2;
+                    }
+                }
+            }
+        }
+    }
+
+    updateHud();
+}
+
+// Update coords if possible. Return the collided uid, if any
 EntityUID game_update_position(const uint8_t level[], Coords *pos, float rel_x,
                                float rel_y, bool only_walls)
 {
@@ -401,82 +511,82 @@ EntityUID game_update_position(const uint8_t level[], Coords *pos, float rel_x,
     return (collide_x || collide_y || UID_NULL);
 }
 
-/**
- * @brief GAME player fire shootgun and compute damage.
- *
- */
-void game_fire_shootgun(void)
-{
-    sound_play(shoot_snd, SHOOT_SND_LEN);
-
-    for (uint8_t i = 0; i < num_entities; i++)
-    {
-        // Shoot only ALIVE enemies
-        if ((entities_get_type(entity[i].uid) != E_ENEMY) ||
-            (entity[i].state == S_DEAD) ||
-            (entity[i].state == S_HIDDEN))
-            continue;
-
-        Coords transform = game_translate_into_view(&(entity[i].pos));
-        if ((fabsf(transform.x) < 20.0f) && (transform.y > 0.0f))
-        {
-            uint8_t damage = MIN(
-                GUN_MAX_DAMAGE,
-                GUN_MAX_DAMAGE /
-                    (fabsf(transform.x) * entity[i].distance) / 5.0f);
-            if (damage > 0)
-            {
-                entity[i].health = MAX(0, entity[i].health - damage);
-                entity[i].state = S_HIT;
-                entity[i].timer = 4;
-            }
-        }
-    }
-}
-
-/**
- * @brief GAME execute entities AI logic.
- *
- * @param level Level byte map
- */
 void game_update_entities(const uint8_t level[])
 {
+    x = rand() % 4 + 1;
     uint8_t i = 0;
     while (i < num_entities)
     {
-        // Update distance
-        entity[i].distance = coords_get_distance(
-            &(player.pos), &(entity[i].pos));
+        // update distance
+        entity[i].distance = coords_get_distance(&(player.pos), &(entity[i].pos));
 
         // Run the timer. Works with actual frames.
+        // Todo: use delta_time here. But needs float type and more memory
         if (entity[i].timer > 0)
             entity[i].timer--;
 
-        // Too far away. put it in doze mode
+        // too far away. put it in doze mode
         if (entity[i].distance > MAX_ENTITY_DISTANCE)
         {
             game_remove_entity(entity[i].uid);
+            // don't increase 'i', since current one has been removed
             continue;
         }
-
-        // Bypass render if hidden
+        // bypass render if hidden
         if (entity[i].state == S_HIDDEN)
         {
             i++;
             continue;
         }
 
-        EntityType type = entities_get_type(entity[i].uid);
+        uint8_t type = entities_get_type(entity[i].uid);
+
         switch (type)
         {
         case E_ENEMY:
         {
+
             // Enemy "IA"
             if (entity[i].health == 0)
             {
+                if (entity[i].a == false)
+                {
+                    if (x == 1)
+                    {
+                        game_spawn_entity(E_KEY, entity[i].pos.x, entity[i].pos.y);
+                        entity[i].a = true;
+                        enemyCount++;
+                        z = 7;
+                    }
+                    else if (x == 2)
+                    {
+                        game_spawn_entity(E_KEY, entity[i].pos.x, entity[i].pos.y);
+                        entity[i].a = true;
+                        enemyCount++;
+                        z = 7;
+                    }
+                    else if (x == 3)
+                    {
+                        game_spawn_entity(E_MEDKIT, entity[i].pos.x, entity[i].pos.y);
+                        entity[i].a = true;
+                        enemyCount++;
+                        z = 7;
+                    }
+                    else
+                    {
+                        entity[i].a = true;
+                        enemyCount++;
+                        z = 7;
+                    }
+                    if (bss == true)
+                        enemyCount2++;
+                }
+                if (bss == true && enemyCount > 2)
+                {
+                }
                 if (entity[i].state != S_DEAD)
                 {
-                    entity[i].state = S_DEAD; // Entity is dead
+                    entity[i].state = S_DEAD;
                     entity[i].timer = 6;
                 }
             }
@@ -484,48 +594,48 @@ void game_update_entities(const uint8_t level[])
             {
                 if (entity[i].timer == 0)
                 {
-                    entity[i].state = S_ALERT; // Back to alert state
-                    entity[i].timer = 40;      // Delay next fireball thrown
+                    // Back to alert state
+                    entity[i].state = S_ALERT;
+                    entity[i].timer = 40; // delay next fireball thrown
                 }
             }
             else if (entity[i].state == S_FIRING)
             {
                 if (entity[i].timer == 0)
                 {
-                    entity[i].state = S_ALERT; // Back to alert state
-                    entity[i].timer = 40;      // Delay next fireball thrown
+                    // Back to alert state
+                    entity[i].state = S_ALERT;
+                    entity[i].timer = 40;
+                    // delay next fireball throwm
                 }
             }
             else
             {
-                if ((entity[i].distance > ENEMY_MELEE_DIST) &&
-                    (entity[i].distance < MAX_ENEMY_VIEW))
+                // ALERT STATE
+                if (entity[i].distance > ENEMY_MELEE_DIST && entity[i].distance < MAX_ENEMY_VIEW)
                 {
                     if (entity[i].state != S_ALERT)
                     {
-                        entity[i].state = S_ALERT; // Back to alert state
-                        entity[i].timer = 20;      // used to throw fireballs
+                        entity[i].state = S_ALERT;
+                        entity[i].timer = 20; // used to throw fireballs
                     }
                     else
                     {
                         if (entity[i].timer == 0)
                         {
                             // Throw a fireball
-                            game_spawn_fireball(
-                                entity[i].pos.x, entity[i].pos.y);
+                            game_spawn_fireball(entity[i].pos.x, entity[i].pos.y);
                             entity[i].state = S_FIRING;
                             entity[i].timer = 6;
                         }
                         else
                         {
-                            // Move towards to the player
+                            // move towards to the player.
                             game_update_position(
                                 level,
                                 &(entity[i].pos),
-                                SIGN(player.pos.x, entity[i].pos.x) *
-                                    ENEMY_SPEED * delta_time,
-                                SIGN(player.pos.y, entity[i].pos.y) *
-                                    ENEMY_SPEED * delta_time,
+                                SIGN(player.pos.x, entity[i].pos.x) * ENEMY_SPEED * delta_time,
+                                SIGN(player.pos.y, entity[i].pos.y) * ENEMY_SPEED * delta_time,
                                 true);
                         }
                     }
@@ -540,15 +650,19 @@ void game_update_entities(const uint8_t level[])
                     }
                     else if (entity[i].timer == 0)
                     {
-                        // Melee attack
-                        player.health =
-                            MAX(0, player.health - ENEMY_MELEE_DAMAGE);
+                        // Melee attack;
+                        if (debug == false)
+                        {
+                            player.health = MAX(0, player.health - ENEMY_MELEE_DAMAGE * difficulty);
+                        }
                         entity[i].timer = 14;
-                        flash_screen = true;
+                        flash_screen = 1;
+                        updateHud();
                     }
                 }
                 else
                 {
+                    // stand
                     entity[i].state = S_STAND;
                 }
             }
@@ -560,29 +674,30 @@ void game_update_entities(const uint8_t level[])
             if (entity[i].distance < FIREBALL_COLLIDER_DIST)
             {
                 // Hit the player and disappear
-                player.health =
-                    MAX(0, player.health - ENEMY_FIREBALL_DAMAGE);
-                flash_screen = true;
+                if (debug == false)
+                {
+                    player.health = MAX(0, player.health - ENEMY_FIREBALL_DAMAGE * difficulty);
+                }
+                flash_screen = 1;
+                updateHud();
                 game_remove_entity(entity[i].uid);
-                continue;
+                continue; // continue in the loop
             }
             else
             {
-                // Move, only collide with walls.
+                // Move. Only collide with walls.
                 // Note: using health to store the angle of the movement
                 EntityUID collided = game_update_position(
                     level,
                     &(entity[i].pos),
-                    cosf((float)entity[i].health / FIREBALL_ANGLES * PI) *
-                        FIREBALL_SPEED,
-                    sinf((float)entity[i].health / FIREBALL_ANGLES * PI) *
-                        FIREBALL_SPEED,
+                    cosf((float)entity[i].health / FIREBALL_ANGLES * PI) * FIREBALL_SPEED,
+                    sinf((float)entity[i].health / FIREBALL_ANGLES * PI) * FIREBALL_SPEED,
                     true);
 
                 if (collided)
                 {
                     game_remove_entity(entity[i].uid);
-                    continue;
+                    continue; // continue in the entity check loop
                 }
             }
             break;
@@ -590,26 +705,61 @@ void game_update_entities(const uint8_t level[])
 
         case E_MEDKIT:
         {
-            if (entity[i].distance < ITEM_COLLIDER_DIST)
+            if (entity[i].distance < ITEM_COLLIDER_DIST && player.health != 100 && jump_height < 14)
             {
-                // Pickup
+                // pickup
                 sound_play(medkit_snd, MEDKIT_SND_LEN);
                 entity[i].state = S_HIDDEN;
-                player.health = MIN(100, player.health + 50);
-                flash_screen = true;
+                if (difficulty == 1)
+                {
+                    player.health = MIN(100, player.health + 65);
+                }
+                else if (difficulty == 2)
+                {
+                    player.health = MIN(100, player.health + 50);
+                }
+                else
+                {
+                    player.health = MIN(100, player.health + 25);
+                }
+                updateHud();
+                flash_screen = 1;
+                z = 3;
+                updateHud();
+                z = 2;
+                updateHud();
             }
             break;
         }
 
         case E_KEY:
         {
-            if (entity[i].distance < ITEM_COLLIDER_DIST)
+            if (entity[i].distance < ITEM_COLLIDER_DIST && player.keys < 240 && jump_height < 14)
             {
-                // Pickup
+                // pickup
                 sound_play(get_key_snd, GET_KEY_SND_LEN);
                 entity[i].state = S_HIDDEN;
-                player.keys++;
-                flash_screen = true;
+                if (difficulty == 1)
+                {
+                    player.keys = player.keys + 13;
+                }
+                else if (difficulty == 2)
+                {
+                    player.keys = player.keys + 10;
+                }
+                else
+                {
+                    player.keys = player.keys + 9;
+                }
+                if (player.keys > 240)
+                {
+                    player.keys = 240;
+                }
+                updateHud();
+                z = 3;
+                updateHud();
+                z = 1;
+                updateHud();
             }
             break;
         }
@@ -619,14 +769,8 @@ void game_update_entities(const uint8_t level[])
     }
 }
 
-/**
- * @brief GAME render map with raycasting technique.
- * NOTE: Based on https://lodev.org/cgtutor/raycasting.html
- *
- * @param level       Level byte map
- * @param view_height View height of the camera
- */
-void game_render_map(const uint8_t level[], float view_height)
+// The map raycaster. Based on https://lodev.org/cgtutor/raycasting.html
+void renderMap(const uint8_t level[], float view_height)
 {
     EntityUID last_uid;
 
@@ -670,37 +814,41 @@ void game_render_map(const uint8_t level[], float view_height)
 
         // Wall detection
         uint8_t depth = 0;
-        bool hit = false;
+        bool hit = 0;
         bool side;
-        while (!hit && (depth < MAX_RENDER_DEPTH))
+        bool coll = 0;
+        while (!hit && depth < MAX_RENDER_DEPTH)
         {
             if (side_x < side_y)
             {
                 side_x += delta_x;
                 map_x += step_x;
-                side = false;
+                side = 0;
             }
             else
             {
                 side_y += delta_y;
                 map_y += step_y;
-                side = true;
+                side = 1;
             }
 
             uint8_t block = game_get_level_entity(level, map_x, map_y);
 
-            if (block == E_WALL)
-                hit = true;
+            if (block == E_WALL || block == E_DOOR || block == E_DOOR2 || block == E_DOOR3 || block == E_COLL)
+            {
+                hit = 1;
+                if (block == E_COLL)
+                    coll = 1;
+            }
             else
             {
                 // Spawning entities here, as soon they are visible for the
                 // player. Not the best place, but would be a very performance
                 // cost scan for them in another loop
-                if ((block == E_ENEMY) || (block & 0b00001000))
+                if (block == E_ENEMY || (block & 0b00001000) /* all collectable items */)
                 {
                     // Check that it's close to the player
-                    if (coords_get_distance(&(player.pos), &map_coords) <
-                        MAX_ENTITY_DISTANCE)
+                    if (coords_get_distance(&(player.pos), &map_coords) < MAX_ENTITY_DISTANCE)
                     {
                         EntityUID uid = entities_get_uid(block, map_x, map_y);
                         if (last_uid != uid && !game_is_entity_spawned(uid))
@@ -718,34 +866,43 @@ void game_render_map(const uint8_t level[], float view_height)
         if (hit)
         {
             float distance;
-            if (!side)
-                distance =
-                    MAX(1, (map_x - player.pos.x + (1 - step_x) / 2) / ray_x);
+
+            if (side == 0)
+            {
+                distance = MAX(1, (map_x - player.pos.x + (1 - step_x) / 2) / ray_x);
+            }
             else
-                distance =
-                    MAX(1, (map_y - player.pos.y + (1 - step_y) / 2) / ray_y);
+            {
+                distance = MAX(1, (map_y - player.pos.y + (1 - step_y) / 2) / ray_y);
+            }
 
             // store zbuffer value for the column
-            zbuffer[x / Z_RES_DIVIDER] =
-                MIN(distance * DISTANCE_MULTIPLIER, 0xff);
+            zbuffer[x / Z_RES_DIVIDER] = MIN(distance * DISTANCE_MULTIPLIER, 255);
 
             // rendered line height
-            uint8_t line_height = RENDER_HEIGHT / distance;
+            uint8_t line_height = RENDER_HEIGHT / distance - 1;
 
-            display_draw_vline(
-                x,
-                view_height / distance - line_height / 2 + RENDER_HEIGHT / 2,
-                view_height / distance + line_height / 2 + RENDER_HEIGHT / 2,
-                GRADIENT_COUNT - (side * 2) -
-                    (distance / MAX_RENDER_DEPTH * GRADIENT_COUNT));
+            if (coll == true)
+            {
+                display_draw_vline(
+                    x,
+                    view_height / distance - line_height / 2 + RENDER_HEIGHT / 2 - 17,
+                    view_height / distance + line_height / 2 + RENDER_HEIGHT / 2,
+                    GRADIENT_COUNT - (int)(distance / MAX_RENDER_DEPTH * GRADIENT_COUNT) - side * 2);
+            }
+            else
+            {
+                display_draw_vline(
+                    x,
+                    view_height / distance - line_height / 2 + RENDER_HEIGHT / 2,
+                    view_height / distance + line_height / 2 + RENDER_HEIGHT / 2,
+                    GRADIENT_COUNT - (int)(distance / MAX_RENDER_DEPTH * GRADIENT_COUNT) - side * 2);
+            }
         }
     }
 }
 
-/**
- * @brief GAME sort entities from far to close.
- *
- */
+// Sort entities from far to close
 void game_sort_entities(void)
 {
     uint8_t gap = num_entities;
@@ -772,12 +929,6 @@ void game_sort_entities(void)
     }
 }
 
-/**
- * @brief GAME translate 2D map coordinates into camera coordinates.
- *
- * @param pos 2D map coordinates
- * @return Coords Camera coordinates
- */
 Coords game_translate_into_view(Coords *pos)
 {
     // Translate sprite position to relative to camera
@@ -795,11 +946,6 @@ Coords game_translate_into_view(Coords *pos)
     return (Coords){transform_x, transform_y};
 }
 
-/**
- * @brief GAME render entities sprites.
- *
- * @param view_height View height of the camera
- */
 void game_render_entities(float view_height)
 {
     game_sort_entities();
@@ -901,234 +1047,919 @@ void game_render_entities(float view_height)
     }
 }
 
-/**
- * @brief GAME render player gun sprite.
- *
- * @param gun_pos Gun cyclic position
- * @param jogging Player jogging speed
- */
-void game_render_gun(uint8_t gun_pos, float jogging)
+void game_render_gun(uint8_t gun_pos, float amount_jogging, bool gun_fired, uint8_t r1)
 {
     // jogging
-    uint8_t x = 48 + sinf(platform_millis() * JOGGING_SPEED) * 10 * jogging;
-    uint8_t y = RENDER_HEIGHT - gun_pos +
-                fabsf(cosf(platform_millis() * JOGGING_SPEED)) * 8 * jogging;
-
-    // Gun fire
-    if (gun_pos > GUN_SHOT_POS - 2)
-        display_draw_bitmap(x + 6, y - 11, bmp_fire_bits, BMP_FIRE_WIDTH,
-                            BMP_FIRE_HEIGHT, true);
-
-    // Don't draw over the hud
+    char x = 48 + sinf((float)platform_millis() * JOGGING_SPEED) * 10 * amount_jogging - 9;
+    char y = RENDER_HEIGHT - gun_pos + fabsf(cosf((float)platform_millis() * JOGGING_SPEED)) * 8 * amount_jogging - 3;
     uint8_t clip_height = MAX(0, MIN(y + BMP_GUN_HEIGHT, RENDER_HEIGHT) - y);
+    if (gun_pos > GUN_SHOT_POS - 2)
+    {
+        // Gun fire
+        if (player.keys > 0 && gun_fired == true)
+        {
+            display_draw_bitmap(x + 14, y - 11, bmp_fire_bits, BMP_FIRE_WIDTH, BMP_FIRE_HEIGHT, 1);
+        }
+    }
+    if (r1 == 1)
+    {
+        clip_height = MAX(0, MIN(y + BMP_RE1_HEIGHT, RENDER_HEIGHT) - y + 22);
+        display_draw_bitmap(x - 10, y - 22, bmp_re1_mask, BMP_RE1_WIDTH, clip_height, 0);
+        display_draw_bitmap(x - 10, y - 22, bmp_re1_bits, BMP_RE1_WIDTH, clip_height, 1);
+    }
+    else if (r1 == 2)
+    {
+        clip_height = MAX(0, MIN(y + BMP_RE2_HEIGHT, RENDER_HEIGHT) - y + 22);
+        display_draw_bitmap(x - 10, y - 22, bmp_re2_mask, BMP_RE2_WIDTH, clip_height, 0);
+        display_draw_bitmap(x - 10, y - 22, bmp_re2_bits, BMP_RE2_WIDTH, clip_height, 1);
+    }
+    else if (r1 == 0)
+    {
+        display_draw_bitmap(x, y, bmp_gun_mask, BMP_GUN_WIDTH, clip_height, 0);
+        display_draw_bitmap(x, y, bmp_gun_bits, BMP_GUN_WIDTH, clip_height, 1);
+    }
+    else
+    {
+    }
 
-    // Draw the gun (black mask + actual sprite)
-    display_draw_bitmap(x, y, bmp_gun_mask, BMP_GUN_WIDTH, clip_height, false);
-    display_draw_bitmap(x, y, bmp_gun_bits, BMP_GUN_WIDTH, clip_height, true);
+    // Don't draw over the hud!
+
+    // Draw the gun (black mask + actual sprite).
 }
 
-/**
- * @brief GAME render heads-up display (HUD).
- *
- */
-void game_render_hud(void)
+// Only needed first time
+void game_render_hud()
 {
-    // Clear HUD
-    display_draw_rect(0, RENDER_HEIGHT, SCREEN_WIDTH, HUD_HEIGHT, false);
-
-    // Draw HUD symbols
-    display_draw_text(2, RENDER_HEIGHT, "{}", false);
-    display_draw_text(40, RENDER_HEIGHT, "[]", false);
-
-    // Update stats
-    display_draw_int(12, RENDER_HEIGHT, player.health);
-    display_draw_int(50, RENDER_HEIGHT, player.keys);
-    display_draw_int(114, RENDER_HEIGHT, (uint8_t)(display_get_fps()));
-    display_draw_int(82, RENDER_HEIGHT, num_entities);
+    if (debug == false)
+    {
+        display_draw_text(2, 58, "{}", false);   // Health symbol
+        display_draw_text(105, 58, "[]", false); // Keys symbol
+        updateHud();
+    }
+    else
+    {
+        display_draw_text(2, 58, "X", false);   // Health symbol
+        display_draw_text(105, 58, "Y", false); // Keys symbol
+        updateHud();
+    }
 }
 
-/**
- * @brief GAME run intro scene.
- *
- */
-void game_run_intro_scene(void)
+// Render values for the HUD
+void updateHud()
 {
+    display_draw_rect(12, 58, 100, 6, false);
+    display_draw_rect(50, 58, 15, 6, false);
+    display_draw_rect(58, 58, 70, 6, false);
+
+    if (z == 1)
+    {
+        display_draw_text(31, 58, "FOUND ", false);
+        display_draw_text(65, 58, " SHELLS", false);
+        if (difficulty == 1)
+        {
+            display_draw_text(57, 58, "13", false);
+        }
+        else if (difficulty == 2)
+        {
+            display_draw_text(57, 58, "10", false);
+        }
+        else
+        {
+            display_draw_text(60, 58, "9", false);
+        }
+    }
+
+    else if (z == 2)
+    {
+        display_draw_text(31, 58, "FOUND A MEDKIT", false);
+    }
+    else if (z == 3)
+    {
+        display_draw_rect(12, 58, 100, 6, false);
+        display_draw_rect(1, 58, 100, 6, false);
+        display_draw_rect(50, 58, 15, 6, false);
+        display_draw_rect(58, 58, 70, 6, false);
+    }
+    else if (z == 4)
+    {
+        display_draw_text(38, 58, "GAME OVER", false);
+    }
+    else if (z == 5)
+    {
+        display_draw_text(44, 58, "YOU WIN", false);
+    }
+    else if (z == 6)
+    {
+        display_draw_text(33, 58, "GOAL-20 KILLS", false);
+    }
+    else if (z == 7)
+    {
+        if (levelID == true && bss == true)
+        {
+            display_draw_text(37, 58, enemyCount2, false);
+            display_draw_text(52, 58, "OUT OF ", false);
+            display_draw_text(87, 58, enemyGoal2, false);
+        }
+        else if (levelID == false)
+        {
+            display_draw_text(37, 58, enemyCount, false);
+            display_draw_text(52, 58, "OUT OF ", false);
+            display_draw_text(87, 58, enemyGoal, false);
+        }
+    }
+    else if (z == 8)
+    {
+        display_draw_text(35, 58, "SECRET FOUND", false);
+    }
+    else if (z == 9)
+    {
+        display_draw_text(31, 58, "GOAL-FIND EXIT", false);
+    }
+    else if (z == 10)
+    {
+        display_draw_text(31, 58, "DEBUG MODE OFF", false);
+    }
+    else
+    {
+        display_draw_text(32, 58, "DEBUG MODE ON", false);
+    }
+
+    if (debug == false)
+    {
+        display_draw_rect(1, 58, 8, 6, false);
+        display_draw_text(2, 58, "{}", false);
+        display_draw_text(103, 58, "[]", false);
+        display_draw_text(12, 58, player.health, false);
+        display_draw_text(113, 58, player.keys, false);
+    }
+    else
+    {
+        display_draw_rect(1, 58, 8, 6, false);
+        display_draw_text(2, 58, "X", false);
+        display_draw_text(105, 58, "Y", false);
+        char posx[10];
+        char posy[10];
+        sprintf(posx, "%f", player.pos.x);
+        sprintf(posy, "%f", player.pos.y);
+        display_draw_text(12, 58, posx, false);
+        display_draw_text(113, 58, posy, false);
+    }
+}
+
+// Debug stats
+void renderStats()
+{
+}
+
+void softReset()
+{
+    asm volatile("jmp 0");
+}
+
+void game_run_story_scene()
+{
+    display_draw_rect(1, 1, 127, 63, false);
+
+    if (mid == 1)
+    {
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .14, "YEAR 2027. HUMANS REACHED", false);
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .23, "OTHER PLANETS, BUT WE ARE", false);
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .32, "NOT ALONE, THERE IS ALSO", false);
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .42, "HOSTILE ALIENS HERE. YOU", false);
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .51, "ARE AN UNKNOWN MARINE,", false);
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .60, "WHO FIGHT IN OLD LAB FOR", false);
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .70, "REMNANTS OF EARTH. RESIST", false);
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .80, "ALIENS TO ESCAPE.", false);
+    }
+    else if (mid == 2)
+    {
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .14, "AFTER KILLING BUNCH OF ", false);
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .23, "ALIENS, LIGHTS TURNED OFF", false);
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .32, "AND THE FLOOR COLLAPSED", false);
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .42, "UNDER YOUR FEET AND YOU ", false);
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .51, "FELL INTO THE UTILITY", false);
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .60, "ROOMS. YOU HAVE NO CHOICE", false);
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .70, "BUT TO START LOOKING FOR ", false);
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .80, "EXIT, WHILE FIGHT ALIENS.", false);
+
+        levelID = true;
+    }
+    else
+    {
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .14, "AFTER HARD FIGHT YOU WENT", false);
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .23, "TO EXIT. AND AS SOON AS", false);
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .32, "YOU STEP OUT, AN ALIEN", false);
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .42, "ATTACKS YOU FROM BEHIND", false);
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .51, "AND KILLS YOU. YOU DIDNT", false);
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .60, "EXPECT THIS. YOUR FIGHT", false);
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .70, "CAN NOT END LIKE THIS...", false);
+        display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .80, "THE END (MAYBE...)", false);
+    }
+    display_draw_text(SCREEN_WIDTH / 2.1 - 24, SCREEN_HEIGHT * .01, "THE STORY", false);
+    display_draw_text(SCREEN_WIDTH / 2 - 27, SCREEN_HEIGHT * .91, "PRESS FIRE", false);
+
+    display_update();
+
+    if (input_fire())
+    {
+        fade_e = true;
+        if (mid < 3)
+        {
+            game_jump_to_scene(SCENE_LEVEL);
+        }
+        else
+        {
+            game_jump_to_scene(SCENE_SCORE);
+        }
+    }
+}
+
+void game_run_score_scene()
+{
+
+    score = player.keys / 2;
+    score += player.health;
+    score *= 43;
+    score *= difficulty;
+    if (player.secret != 0)
+    {
+        score += 69;
+    }
+    if (player.secret2 += 0)
+    {
+        score += 69;
+    }
+    if (player.secret3 += 0)
+    {
+        score += 69;
+    }
+    score += k;
+
+    display_draw_rect(1, 1, 127, 63, false);
+
     display_draw_bitmap(
-        (SCREEN_WIDTH - BMP_LOGO_WIDTH) / 2,
-        (SCREEN_HEIGHT - BMP_LOGO_HEIGHT) / 3,
+        (SCREEN_WIDTH - BMP_LOGO_WIDTH) / 2 - 27,
+        (SCREEN_HEIGHT - BMP_LOGO_HEIGHT) / 6,
         bmp_logo_bits,
         BMP_LOGO_WIDTH,
         BMP_LOGO_HEIGHT,
-        true);
+        1);
+    display_draw_text(SCREEN_WIDTH / 2.36 - 52, SCREEN_HEIGHT * .79, "NANO BRUTALITY", false);
+    display_draw_text(SCREEN_WIDTH / 0.99 - 45, SCREEN_HEIGHT * .2, "YOU WIN", false);
+    if (player.cheats == false)
+    {
+        display_draw_text(SCREEN_WIDTH / 0.99 - 40, SCREEN_HEIGHT * .4, "SCENE_SCORE", false);
+        if (a < score)
+        {
+            a += 155;
+            display_draw_text(SCREEN_WIDTH / 0.99 - 40, SCREEN_HEIGHT * .5, a, false);
+            sound_play(walk1_snd, WALK1_SND_LEN);
+        }
+        else if (a > score)
+        {
+            a = score;
+            display_draw_text(SCREEN_WIDTH / 0.99 - 40, SCREEN_HEIGHT * .5, a, false);
+            m = false;
+            music = 1;
+            sound_play(shot_snd, SHOT_SND_LEN);
+        }
+        else
+        {
+            display_draw_text(SCREEN_WIDTH / 0.99 - 40, SCREEN_HEIGHT * .5, a, false);
+            display_draw_text(SCREEN_WIDTH / 0.99 - 52, SCREEN_HEIGHT * .91, "PRESS FIRE", false);
+            if (input_fire())
+            {
+                display_draw_rect(1, 1, 127, 63, false);
+                display_update();
+                music = 99;
+                platform_delay(1000);
+                fade_e = true;
+                softReset();
+            }
+        }
+    }
+    else if (player.cheats == true)
+    {
+        display_draw_text(SCREEN_WIDTH / 0.99 - 49, SCREEN_HEIGHT * .4, "NO SCENE_SCORE", false);
+        display_draw_text(SCREEN_WIDTH / 0.99 - 37, SCREEN_HEIGHT * .5, "FOR", false);
+        display_draw_text(SCREEN_WIDTH / 0.99 - 49, SCREEN_HEIGHT * .6, "CHEATERS", false);
+        display_draw_text(SCREEN_WIDTH / 0.99 - 52, SCREEN_HEIGHT * .91, "PRESS FIRE", false);
+        if (input_fire())
+        {
+            display_draw_rect(1, 1, 127, 63, false);
+            display_update();
+            music = 99;
+            platform_delay(1000);
+            fade_e = true;
+            softReset();
+        }
+        if (mc == false)
+        {
+            m = false;
+            music = 1;
+            sound_play(mus_s1_snd, MUS_S1_SND_LEN);
+            platform_delay(100);
+            mc = true;
+        }
+    }
+    display_update();
 
-    display_draw_text(
-        SCREEN_WIDTH / 2 - 25,
-        SCREEN_HEIGHT * 0.8f,
-        "PRESS FIRE",
-        true);
-
-    if (input_fire())
-        game_jump_to_scene(SCENE_LEVEL1);
+    fade_e = false;
+    game_jump_to_scene(SCENE_SCORE);
 }
 
-/**
- * @brief GAME run level scene.
- *
- */
+// Intro screen
+void game_run_intro_scene()
+{
+    music = 1;
+
+    display_draw_bitmap(
+        (SCREEN_WIDTH - BMP_LOGO_WIDTH) / 2,
+        (SCREEN_HEIGHT - BMP_LOGO_HEIGHT) / 6,
+        bmp_logo_bits,
+        BMP_LOGO_WIDTH,
+        BMP_LOGO_HEIGHT,
+        1);
+
+    platform_delay(100);
+    display_draw_text(SCREEN_WIDTH / 2.36 - 25, SCREEN_HEIGHT * .79, "NANO BRUTALITY", false);
+    display_draw_text(SCREEN_WIDTH / 4.6 - 25, SCREEN_HEIGHT * .3, "PRESS", false);
+    display_draw_text(SCREEN_WIDTH / 0.99 - 25, SCREEN_HEIGHT * .3, "FIRE", false);
+    display_draw_text(SCREEN_WIDTH / 4.6 - 25, SCREEN_HEIGHT * .91, "V 1.5", false);
+
+    display_update();
+    sound_play(mus_s1_snd, MUS_S1_SND_LEN);
+    if (input_fire())
+        game_jump_to_scene(SCENE_DIFFICULTY);
+
+    // wait for fire
+}
+
+void game_run_difficulty_scene()
+{
+    platform_delay(200);
+
+    display_draw_rect(1, 1, 127, 63, false);
+    display_draw_text(SCREEN_WIDTH / 2.66 - 25, SCREEN_HEIGHT * .05, "CHOOSE SKILL LEVEL", false);
+    display_draw_text(SCREEN_WIDTH / 2.75 - 25, SCREEN_HEIGHT * .3, "I", false);
+    display_draw_text(SCREEN_WIDTH / 2.4 - 25, SCREEN_HEIGHT * .3, "M TOO YOUNG TO DIE.", false);
+    display_draw_text(SCREEN_WIDTH / 2.6 - 25, SCREEN_HEIGHT * .26, ",", false);
+    display_draw_text(SCREEN_WIDTH / 2.66 - 25, SCREEN_HEIGHT * .43, "HURT ME PLENTY.", false);
+    display_draw_text(SCREEN_WIDTH / 2.66 - 25, SCREEN_HEIGHT * .56, "NIGHTMARE.", false);
+    display_draw_text(SCREEN_WIDTH / 3.32 - 25, SCREEN_HEIGHT * .77, "NOTE - BUTTONS OUTSIDE", false);
+    display_draw_text(SCREEN_WIDTH / 4.1 - 25, SCREEN_HEIGHT * .9, "GAMEPLAY WORK AS U THINK", false);
+
+    if (difficulty == 2)
+    {
+        display_draw_text(SCREEN_WIDTH / 3 - 25, SCREEN_HEIGHT * .43, "#", false);
+    }
+    else if (difficulty == 1)
+    {
+        display_draw_text(SCREEN_WIDTH / 3 - 25, SCREEN_HEIGHT * .3, "#", false);
+    }
+    else
+    {
+        display_draw_text(SCREEN_WIDTH / 3 - 25, SCREEN_HEIGHT * .56, "#", false);
+    }
+
+    if (input_down())
+    {
+        difficulty++;
+        if (difficulty == 4)
+        {
+            difficulty = 1;
+        }
+        fade_e = false;
+        game_jump_to_scene(SCENE_DIFFICULTY);
+    }
+    else if (input_up())
+    {
+        difficulty--;
+        if (difficulty == 0)
+        {
+            difficulty = 3;
+        }
+        fade_e = false;
+        game_jump_to_scene(SCENE_DIFFICULTY);
+    }
+    else if (input_fire())
+    {
+        fade_e = true;
+        game_jump_to_scene(SCENE_MUSIC);
+    }
+
+    display_update();
+}
+
+void game_run_music_scene(void)
+{
+    fade_e = false;
+    platform_delay(200);
+
+    display_draw_rect(1, 1, 127, 63, false);
+    display_draw_text(SCREEN_WIDTH / 2.75 - 25, SCREEN_HEIGHT * .25, "MUSIC", false);
+    display_draw_text(SCREEN_WIDTH / 2.66 - 25, SCREEN_HEIGHT * .39, "OFF", false);
+    display_draw_text(SCREEN_WIDTH / 2.66 - 25, SCREEN_HEIGHT * .50, "ON (NOT RECOMENDED)", false);
+
+    if (m == false)
+    {
+        display_draw_text(SCREEN_WIDTH / 3 - 25, SCREEN_HEIGHT * .50, "#", false);
+    }
+    else if (m == true)
+    {
+        display_draw_text(SCREEN_WIDTH / 3 - 25, SCREEN_HEIGHT * .39, "#", false);
+    }
+
+    if (input_down() || input_up())
+    {
+        m = !m;
+        game_jump_to_scene(SCENE_MUSIC);
+    }
+    else if (input_fire())
+    {
+        fade_e = true;
+        game_jump_to_scene(SCENE_STORY);
+    }
+
+    display_update();
+}
+
 void game_run_level_scene(void)
 {
-    static bool gun_fired;
-    static uint8_t gun_pos;
-    static float rot_speed;
-    static float old_dir_x;
-    static float old_plane_x;
-    static float view_height;
-    static float jogging;
+    display_get_fps();
+
+    if (player.keys == 0)
+    {
+        coll = false;
+    }
+    else if (player.keys != 0)
+    {
+        coll = true;
+    }
+
+    if (levelID == false)
+    {
+        k = player.keys;
+    }
+
+    display_draw_rect(1, 58, 100, 2, false);
+
+    updateHud();
+
+    // Clear only the 3d view
+    memset(display_buf, 0, SCREEN_WIDTH * (RENDER_HEIGHT / 8));
+
+    if (player.pos.x >= 2 && player.pos.x <= 3 && player.pos.y >= 54 && player.pos.y <= 55 && z == 1 && player.secret < 2)
+    {
+        game_spawn_entity(E_ENEMY, 1, 51);
+        game_spawn_entity(E_ENEMY, 3, 51);
+        player.secret++;
+    }
+
+    if (player.pos.x >= 46 && player.pos.x <= 47 && player.pos.y >= 35 && player.pos.y <= 36 && levelID == true)
+    {
+        player.pos.x = 12.5;
+        player.pos.y = 33.5;
+        enemyCount = 0;
+        game_spawn_entity(E_ENEMY, 10, 38);
+        game_spawn_entity(E_ENEMY, 13, 38);
+        bss = true;
+    }
+    if (player.pos.y >= 55 && player.pos.y <= 56 && player.pos.x >= 12 && player.pos.x <= 23 && levelID == true)
+    {
+        mid = 3;
+        m = false;
+        sound_play(mus_s1_snd, MUS_S1_SND_LEN);
+        game_jump_to_scene(SCENE_STORY);
+    }
+    if (levelID == true && bss == true)
+    {
+        if (enemyCount == 1 || enemyCount == 5 || enemyCount == 9)
+        {
+            clearEntities();
+            enemyCount++;
+            game_spawn_entity(E_ENEMY, 13, 38);
+        }
+        else if (enemyCount == 3 || enemyCount == 7 || enemyCount == 11)
+        {
+            clearEntities();
+            enemyCount++;
+            game_spawn_entity(E_ENEMY, 10, 38);
+        }
+        else if (enemyCount == 13)
+        {
+            player.pos.y = player.pos.y + 12;
+            enemyCount = 0;
+            enemyCount2 = 8;
+            updateHud();
+        }
+    }
+
+    if (m == true)
+    {
+        music = 99;
+    }
 
     // If the player is alive
     if (player.health > 0)
     {
+
+        if (jump == 1 || jump == 2)
+        {
+            if (jump_height > 0 && jump == 2)
+            {
+                view_height -= 4;
+                jump_height -= 4;
+            }
+            else if (jump_height < 20 && jump == 1)
+            {
+                view_height += 4;
+                jump_height += 4;
+            }
+            else if (jump_height == 20)
+                jump = 2;
+            else if (jump_height == 0)
+                jump = 0;
+
+            vel = 2;
+        }
+        if (jump == 0)
+        {
+            view_height = fabsf(sinf(platform_millis() * JOGGING_SPEED)) * 6 * jogging;
+            vel = 1;
+        }
+
         // Player speed
         if (input_up())
         {
-            player.velocity += (MOV_SPEED - player.velocity) * 0.4f;
-            jogging = fabsf(player.velocity) * MOV_SPEED_INV;
+
+            player.velocity += (MOV_SPEED - player.velocity) * .4;
+            if (jump == 1 || jump == 2)
+            {
+                jogging = 0;
+                gun_pos = 22;
+            }
+            else
+            {
+                jogging = fabsf(player.velocity) * MOV_SPEED_INV * 2;
+            }
         }
         else if (input_down())
         {
-            player.velocity -= (MOV_SPEED + player.velocity) * 0.4f;
-            jogging = fabsf(player.velocity) * MOV_SPEED_INV;
+
+            jogging = fabsf(player.velocity) * MOV_SPEED_INV * 2;
+            player.velocity += (-MOV_SPEED - player.velocity) * .4;
+            if (jump == 1 || jump == 2)
+            {
+                jogging = 0;
+                gun_pos = 22;
+            }
+            else
+            {
+                jogging = fabsf(player.velocity) * MOV_SPEED_INV * 2;
+            }
         }
         else
         {
-            player.velocity *= 0.5f;
-            jogging = fabsf(player.velocity) * MOV_SPEED_INV;
+            if (jump == 1 || jump == 2)
+            {
+                jogging = 0;
+                gun_pos = 22;
+            }
+            else
+            {
+                jogging = fabsf(player.velocity) * MOV_SPEED_INV * 2;
+            }
+            player.velocity *= .5;
         }
 
         // Player rotation
         if (input_right())
         {
+
             rot_speed = ROT_SPEED * delta_time;
             old_dir_x = player.dir.x;
-            player.dir.x = player.dir.x * cosf(-rot_speed) -
-                           player.dir.y * sinf(-rot_speed);
-            player.dir.y = old_dir_x * sinf(-rot_speed) +
-                           player.dir.y * cosf(-rot_speed);
+            player.dir.x = player.dir.x * cosf(-rot_speed) - player.dir.y * sinf(-rot_speed);
+            player.dir.y = old_dir_x * sinf(-rot_speed) + player.dir.y * cosf(-rot_speed);
             old_plane_x = player.plane.x;
-            player.plane.x = player.plane.x * cosf(-rot_speed) -
-                             player.plane.y * sinf(-rot_speed);
-            player.plane.y = old_plane_x * sinf(-rot_speed) +
-                             player.plane.y * cosf(-rot_speed);
+            player.plane.x = player.plane.x * cosf(-rot_speed) - player.plane.y * sinf(-rot_speed);
+            player.plane.y = old_plane_x * sinf(-rot_speed) + player.plane.y * cosf(-rot_speed);
         }
         else if (input_left())
         {
+
             rot_speed = ROT_SPEED * delta_time;
             old_dir_x = player.dir.x;
-            player.dir.x = player.dir.x * cosf(rot_speed) -
-                           player.dir.y * sinf(rot_speed);
-            player.dir.y = old_dir_x * sinf(rot_speed) +
-                           player.dir.y * cosf(rot_speed);
+            player.dir.x = player.dir.x * cosf(rot_speed) - player.dir.y * sinf(rot_speed);
+            player.dir.y = old_dir_x * sinf(rot_speed) + player.dir.y * cosf(rot_speed);
             old_plane_x = player.plane.x;
-            player.plane.x = player.plane.x * cosf(rot_speed) -
-                             player.plane.y * sinf(rot_speed);
-            player.plane.y = old_plane_x * sinf(rot_speed) +
-                             player.plane.y * cosf(rot_speed);
+            player.plane.x = player.plane.x * cosf(rot_speed) - player.plane.y * sinf(rot_speed);
+            player.plane.y = old_plane_x * sinf(rot_speed) + player.plane.y * cosf(rot_speed);
         }
 
-        view_height =
-            fabsf(sinf(platform_millis() * JOGGING_SPEED)) * 6.0f * jogging;
-
-        if (view_height > 5.9f)
+        if (input_left() && input_right() && jump == 0)
         {
-            if (walk_sound_toggle)
-            {
-                sound_play(walk1_snd, WALK1_SND_LEN);
-                walk_sound_toggle = false;
-            }
-            else
-            {
-                sound_play(walk2_snd, WALK2_SND_LEN);
-                walk_sound_toggle = true;
-            }
+            jump = 1;
+            sound_play(jump_snd, JUMP_SND_LEN);
         }
 
+        if (view_height > 2.95 && jump == 0)
+        {
+            if (sound == false)
+            {
+                if (walkSoundToggle)
+                {
+                    sound_play(walk1_snd, WALK1_SND_LEN);
+                    walkSoundToggle = false;
+                }
+                else
+                {
+                    sound_play(walk2_snd, WALK2_SND_LEN);
+                    walkSoundToggle = true;
+                }
+            }
+        }
         // Update gun
         if (gun_pos > GUN_TARGET_POS)
         {
             // Right after fire
-            gun_pos -= 1;
+            gun_pos -= 2;
         }
         else if (gun_pos < GUN_TARGET_POS)
         {
             // Showing up
             gun_pos += 2;
         }
-        else if (!gun_fired && input_fire())
+        else if (!gun_fired && input_fire() && player.keys > 0 && reload1 == false)
         {
-            // Ready to fire and fire pressed
+            // ready to fire and fire pressed
+            gun_pos = GUN_SHOT_POS;
+            gun_fired = true;
+            game_fire_shootgun();
+            if (debug == false)
+            {
+                player.keys--;
+            }
+        }
+        else if (gun_fired && !input_fire())
+        {
+            // just fired and restored position
+            gun_fired = false;
+            reload1 = true;
+        }
+        else if (!gun_fired && input_fire() && player.keys == 0 && reload1 == false)
+        {
             gun_pos = GUN_SHOT_POS;
             gun_fired = true;
             game_fire_shootgun();
         }
-        else if (gun_fired && !input_fire())
-        {
-            // Just fired and restored position
-            gun_fired = false;
-        }
-
-        // Update player
-        game_update_position(
-            level_1,
-            &(player.pos),
-            player.dir.x * player.velocity * delta_time,
-            player.dir.y * player.velocity * delta_time,
-            false);
-
-        // Update entities
-        game_update_entities(level_1);
     }
     else
     {
         // The player is dead
-        if (view_height > -10.0f)
-            view_height--;
-        else if (input_fire())
-            game_jump_to_scene(SCENE_INTRO);
+        z = 3;
+        updateHud();
+        z = 4;
+        updateHud();
 
-        if (gun_pos > 1)
+        if (view_height > -5)
+            view_height--;
+
+        else if (input_fire())
+        {
+            game_jump_to_scene(INTRO);
+        }
+        if (gun_pos > 0)
             gun_pos -= 2;
+        else
+        {
+            rc1 = 3;
+        }
     }
+
+    if (fabsf(player.velocity) > 0.003)
+    {
+
+        if (levelID == false)
+        {
+            game_update_position(
+                E1M1,
+                &(player.pos),
+                player.dir.x * player.velocity * delta_time * vel,
+                player.dir.y * player.velocity * delta_time * vel, false);
+        }
+        if (levelID == true)
+        {
+            game_update_position(
+                E1M2,
+                &(player.pos),
+                player.dir.x * player.velocity * delta_time * vel,
+                player.dir.y * player.velocity * delta_time * vel, false);
+        }
+    }
+    else
+    {
+        player.velocity = 0;
+    }
+
+    if (enemyCount == enemyGoal && levelID == false)
+    {
+        z = 3;
+        updateHud();
+        z = 5;
+        updateHud();
+        if (del == 0)
+        {
+            platform_delay(200);
+            del++;
+        }
+        if (input_fire())
+        {
+            player.pos.x = 230;
+            player.pos.y = 50;
+            mid = 2;
+            enemyCount = 0;
+            z = 3;
+            updateHud();
+            game_jump_to_scene(SCENE_STORY);
+        }
+    }
+
+    // Update things
+    if (levelID == false)
+    {
+        game_update_entities(E1M1);
+    }
+    if (levelID == true)
+    {
+        game_update_entities(E1M2);
+    }
+
+    updateHud();
 
     // Render stuff
-    game_render_map(level_1, view_height);
+
+    if (levelID == false)
+    {
+        renderMap(E1M1, view_height);
+    }
+    else if (levelID == true)
+    {
+        renderMap(E1M2, view_height);
+    }
+
     game_render_entities(view_height);
-    game_render_gun(gun_pos, jogging);
+
+    if (reload1 == true)
+    {
+        r++;
+    }
+
+    if (coll == false)
+    {
+        r = 7;
+    }
+
+    if (r == 1)
+    {
+        rc1 = 1;
+    }
+    else if (r == 3)
+    {
+        rc1 = 2;
+        sound_play(r1_snd, R1_SND_LEN);
+    }
+
+    else if (r == 5)
+    {
+        rc1 = 1;
+        sound_play(r2_snd, R2_SND_LEN);
+    }
+    else if (r == 7)
+    {
+        r = 0;
+        reload1 = false;
+        rc1 = 0;
+    }
+
+    game_render_gun(gun_pos, jogging, gun_fired, rc1);
 
     // Fade in effect
-    if (fade_screen > 0)
+    if (fade > 0)
     {
-        display_fade(fade_screen, false);
-        fade_screen--;
-        return;
-    }
-    game_render_hud();
+        display_fade(fade, false);
+        fade--;
 
-    // Flash screen
-    if (flash_screen)
-    {
-        display_invert();
-        flash_screen = false;
+        if (fade == 0)
+        {
+            // Only draw the hud after fade in effect
+            game_render_hud();
+        }
     }
+    else
+    {
+        renderStats();
+    }
+
+    // flash screen
+    if (flash_screen > 0)
+    {
+        invert_screen = !invert_screen;
+        flash_screen--;
+    }
+    else if (invert_screen)
+    {
+        invert_screen = 0;
+    }
+    updateHud();
+
+    // Draw the frame
+    if (invert_screen)
+        display_invert();
+    display_update();
 
     // Exit routine
-    if (input_exit())
-        game_jump_to_scene(SCENE_INTRO);
+    if (input_left() && input_right() && input_up() && input_down() && input_fire())
+    {
+        z = 3;
+        updateHud();
+        if (debug == true)
+        {
+            z = 3;
+            updateHud();
+            z = 10;
+            debug = false;
+            updateHud();
+        }
+        else
+        {
+            z = 3;
+            updateHud();
+            z = 11;
+            debug = true;
+            updateHud();
+            player.cheats = true;
+        }
+        updateHud();
+        platform_delay(500);
+    }
 }
 
-/**
- * @brief GAME main function.
- *
- */
+void loop(void)
+{
+    switch (scene)
+    {
+    case INTRO:
+    {
+
+        game_run_intro_scene();
+        break;
+    }
+    case SCENE_SCORE:
+    {
+        game_run_score_scene();
+        break;
+    }
+    case SCENE_MUSIC:
+    {
+
+        game_run_music_scene();
+        break;
+    }
+    case SCENE_DIFFICULTY:
+    {
+        game_run_difficulty_scene();
+        break;
+    }
+    case SCENE_LEVEL:
+    {
+
+        game_run_level_scene();
+
+        break;
+    }
+    case SCENE_STORY:
+    {
+        game_run_story_scene();
+
+        break;
+    }
+    }
+
+    if (fade_e == true)
+    { // fade out effect
+        for (uint8_t i = 0; i < GRADIENT_COUNT; i++)
+        {
+            display_fade(i, 0);
+            display_update();
+            platform_delay(40);
+        }
+    }
+    exit_scene = false;
+
+    // Stop (so it doesn't repeat forever driving you crazy--you're welcome).
+}
+
 void main(void)
 {
     /* Initialize game */
@@ -1153,5 +1984,3 @@ void main(void)
         display_draw_stop();
     }
 }
-
-/* -------------------------------------------------------------------------- */
