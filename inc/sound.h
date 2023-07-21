@@ -179,12 +179,6 @@ static const uint8_t medkit_snd[] = {
 static const uint8_t MELEE_SND_LEN = 9;
 static const uint8_t melee_snd[] = {0x8f, 0x8e, 0x8e};
 
-uint8_t idx = 0;
-bool sound = false;
-uint16_t snd_ptr = 0;
-uint8_t snd_len = 0;
-uint8_t music = 0;
-
 /* Function prototypes ------------------------------------------------------ */
 
 /**
@@ -213,6 +207,11 @@ void sound_play(const uint8_t *snd, uint8_t len);
  * @return uint16_t Next sound frequency
  */
 uint16_t sound_get_frequency(void);
+
+/* Global variables --------------------------------------------------------- */
+
+bool sound;
+uint8_t music;
 
 #endif /* SOUND_H */
 

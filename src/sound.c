@@ -13,6 +13,9 @@ static uint8_t sound_len;
 static uint8_t sound_idx;
 static uint32_t sound_t0;
 
+extern bool sound;
+extern uint8_t music;
+
 /* Function definitions ----------------------------------------------------- */
 
 /**
@@ -23,6 +26,9 @@ void sound_init(void)
 {
     sound_ptr = NULL;
     sound_len = 0;
+
+    sound = false;
+    music = 0;
 }
 
 /**

@@ -69,7 +69,12 @@ static void game_render_hud(void);
 /* Scenes */
 static void game_jump_to_scene(GameScene scene);
 static void game_run_intro_scene(void);
+static void game_run_story_scene(void);
+static void game_run_music_scene(void);
 static void game_run_level_scene(void);
+static void game_run_difficulty_scene(void);
+static void game_run_score_scene(void);
+
 
 void updateHud(void); // temporary
 
@@ -77,7 +82,7 @@ void updateHud(void); // temporary
 
 static bool exit_scene = false;
 static bool invert_screen = false;
-static uint8_t flash_screen = 0;
+static bool flash_screen = false;
 static uint8_t z = 6;
 static bool coll = 0;
 static uint8_t jump = 0;
@@ -100,7 +105,7 @@ static uint8_t num_static_entities = 0;
 static uint8_t x = 0;
 static uint8_t enemyCount = 0;
 static uint8_t del = 0;
-static bool levelID = false;
+static uint8_t *game_level = E1M1;
 static uint8_t enemyGoal = 20;
 static bool fade_e = true;
 static bool debug = false;
@@ -120,7 +125,7 @@ static float old_dir_x;
 static float old_plane_x;
 static float view_height;
 static float jogging;
-static uint8_t fade = GRADIENT_COUNT - 1;
+static uint8_t fade_screen = GRADIENT_COUNT - 1;
 
 static void (*game_run_scene)(void);
 
@@ -133,8 +138,24 @@ void game_jump_to_scene(GameScene scene)
         game_run_scene = game_run_intro_scene;
         break;
 
+    case SCENE_SCORE:
+        game_run_scene = game_run_score_scene;
+        break;
+
+    case SCENE_MUSIC:
+        game_run_scene = game_run_music_scene;
+        break;
+
+    case SCENE_DIFFICULTY:
+        game_run_scene = game_run_difficulty_scene;
+        break;
+
+    case SCENE_STORY:
+        game_run_scene = game_run_story_scene;
+        break;
+
     case SCENE_LEVEL:
-        game_init_level_scene(E1M1);
+        game_init_level_scene(game_level);
         game_run_scene = game_run_level_scene;
         break;
 
@@ -155,17 +176,8 @@ void game_init_level_scene(const uint8_t level[])
     old_plane_x;
     view_height;
     jogging;
-    fade = GRADIENT_COUNT - 1;
-
+    fade_screen = GRADIENT_COUNT - 1;
     mc = false;
-    if (levelID == false)
-    {
-        game_init_level_scene(E1M1);
-    }
-    if (levelID == true)
-    {
-        game_init_level_scene(E1M2);
-    }
 
     // Initialize game scene callback
     game_run_scene = game_run_intro_scene;
@@ -292,7 +304,7 @@ void game_remove_entity(EntityUID uid)
     }
 }
 
-void clearEntities()
+void clearEntities(void)
 {
     uint8_t i = num_entities;
     bool found;
@@ -656,7 +668,7 @@ void game_update_entities(const uint8_t level[])
                             player.health = MAX(0, player.health - ENEMY_MELEE_DAMAGE * difficulty);
                         }
                         entity[i].timer = 14;
-                        flash_screen = 1;
+                        flash_screen = true;
                         updateHud();
                     }
                 }
@@ -678,7 +690,7 @@ void game_update_entities(const uint8_t level[])
                 {
                     player.health = MAX(0, player.health - ENEMY_FIREBALL_DAMAGE * difficulty);
                 }
-                flash_screen = 1;
+                flash_screen = true;
                 updateHud();
                 game_remove_entity(entity[i].uid);
                 continue; // continue in the loop
@@ -723,7 +735,7 @@ void game_update_entities(const uint8_t level[])
                     player.health = MIN(100, player.health + 25);
                 }
                 updateHud();
-                flash_screen = 1;
+                flash_screen = true;
                 z = 3;
                 updateHud();
                 z = 2;
@@ -770,7 +782,7 @@ void game_update_entities(const uint8_t level[])
 }
 
 // The map raycaster. Based on https://lodev.org/cgtutor/raycasting.html
-void renderMap(const uint8_t level[], float view_height)
+void game_render_map(const uint8_t level[], float view_height)
 {
     EntityUID last_uid;
 
@@ -1088,7 +1100,7 @@ void game_render_gun(uint8_t gun_pos, float amount_jogging, bool gun_fired, uint
 }
 
 // Only needed first time
-void game_render_hud()
+void game_render_hud(void)
 {
     if (debug == false)
     {
@@ -1105,7 +1117,7 @@ void game_render_hud()
 }
 
 // Render values for the HUD
-void updateHud()
+void updateHud(void)
 {
     display_draw_rect(12, 58, 100, 6, false);
     display_draw_rect(50, 58, 15, 6, false);
@@ -1154,17 +1166,17 @@ void updateHud()
     }
     else if (z == 7)
     {
-        if (levelID == true && bss == true)
+        if (game_level == E1M2 && bss == true)
         {
-            display_draw_text(37, 58, enemyCount2, false);
+            display_draw_int(37, 58, enemyCount2);
             display_draw_text(52, 58, "OUT OF ", false);
-            display_draw_text(87, 58, enemyGoal2, false);
+            display_draw_int(87, 58, enemyGoal2);
         }
-        else if (levelID == false)
+        else if (game_level == E1M1)
         {
-            display_draw_text(37, 58, enemyCount, false);
+            display_draw_int(37, 58, enemyCount);
             display_draw_text(52, 58, "OUT OF ", false);
-            display_draw_text(87, 58, enemyGoal, false);
+            display_draw_int(87, 58, enemyGoal);
         }
     }
     else if (z == 8)
@@ -1189,8 +1201,8 @@ void updateHud()
         display_draw_rect(1, 58, 8, 6, false);
         display_draw_text(2, 58, "{}", false);
         display_draw_text(103, 58, "[]", false);
-        display_draw_text(12, 58, player.health, false);
-        display_draw_text(113, 58, player.keys, false);
+        display_draw_int(12, 58, player.health);
+        display_draw_int(113, 58, player.keys);
     }
     else
     {
@@ -1207,16 +1219,15 @@ void updateHud()
 }
 
 // Debug stats
-void renderStats()
+void renderStats(void)
 {
 }
 
-void softReset()
+void softReset(void)
 {
-    asm volatile("jmp 0");
 }
 
-void game_run_story_scene()
+void game_run_story_scene(void)
 {
     display_draw_rect(1, 1, 127, 63, false);
 
@@ -1242,7 +1253,8 @@ void game_run_story_scene()
         display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .70, "BUT TO START LOOKING FOR ", false);
         display_draw_text(SCREEN_WIDTH / 4.6 - 26, SCREEN_HEIGHT * .80, "EXIT, WHILE FIGHT ALIENS.", false);
 
-        levelID = true;
+        // Go to next level
+        game_level = E1M2;
     }
     else
     {
@@ -1258,8 +1270,6 @@ void game_run_story_scene()
     display_draw_text(SCREEN_WIDTH / 2.1 - 24, SCREEN_HEIGHT * .01, "THE STORY", false);
     display_draw_text(SCREEN_WIDTH / 2 - 27, SCREEN_HEIGHT * .91, "PRESS FIRE", false);
 
-    display_update();
-
     if (input_fire())
     {
         fade_e = true;
@@ -1274,13 +1284,13 @@ void game_run_story_scene()
     }
 }
 
-void game_run_score_scene()
+void game_run_score_scene(void)
 {
-
     score = player.keys / 2;
     score += player.health;
     score *= 43;
     score *= difficulty;
+
     if (player.secret != 0)
     {
         score += 69;
@@ -1304,6 +1314,7 @@ void game_run_score_scene()
         BMP_LOGO_WIDTH,
         BMP_LOGO_HEIGHT,
         1);
+
     display_draw_text(SCREEN_WIDTH / 2.36 - 52, SCREEN_HEIGHT * .79, "NANO BRUTALITY", false);
     display_draw_text(SCREEN_WIDTH / 0.99 - 45, SCREEN_HEIGHT * .2, "YOU WIN", false);
     if (player.cheats == false)
@@ -1312,25 +1323,25 @@ void game_run_score_scene()
         if (a < score)
         {
             a += 155;
-            display_draw_text(SCREEN_WIDTH / 0.99 - 40, SCREEN_HEIGHT * .5, a, false);
+            display_draw_int(SCREEN_WIDTH / 0.99 - 40, SCREEN_HEIGHT * .5, a);
             sound_play(walk1_snd, WALK1_SND_LEN);
         }
         else if (a > score)
         {
             a = score;
-            display_draw_text(SCREEN_WIDTH / 0.99 - 40, SCREEN_HEIGHT * .5, a, false);
+            display_draw_int(SCREEN_WIDTH / 0.99 - 40, SCREEN_HEIGHT * .5, a);
             m = false;
             music = 1;
             sound_play(shot_snd, SHOT_SND_LEN);
         }
         else
         {
-            display_draw_text(SCREEN_WIDTH / 0.99 - 40, SCREEN_HEIGHT * .5, a, false);
+            display_draw_int(SCREEN_WIDTH / 0.99 - 40, SCREEN_HEIGHT * .5, a);
             display_draw_text(SCREEN_WIDTH / 0.99 - 52, SCREEN_HEIGHT * .91, "PRESS FIRE", false);
             if (input_fire())
             {
                 display_draw_rect(1, 1, 127, 63, false);
-                display_update();
+
                 music = 99;
                 platform_delay(1000);
                 fade_e = true;
@@ -1347,7 +1358,7 @@ void game_run_score_scene()
         if (input_fire())
         {
             display_draw_rect(1, 1, 127, 63, false);
-            display_update();
+
             music = 99;
             platform_delay(1000);
             fade_e = true;
@@ -1362,40 +1373,38 @@ void game_run_score_scene()
             mc = true;
         }
     }
-    display_update();
 
     fade_e = false;
     game_jump_to_scene(SCENE_SCORE);
 }
 
-// Intro screen
-void game_run_intro_scene()
+/**
+ * @brief GAME run intro scene.
+ *
+ */
+void game_run_intro_scene(void)
 {
-    music = 1;
-
     display_draw_bitmap(
         (SCREEN_WIDTH - BMP_LOGO_WIDTH) / 2,
-        (SCREEN_HEIGHT - BMP_LOGO_HEIGHT) / 6,
+        (SCREEN_HEIGHT - BMP_LOGO_HEIGHT) / 3,
         bmp_logo_bits,
         BMP_LOGO_WIDTH,
         BMP_LOGO_HEIGHT,
-        1);
+        true);
 
-    platform_delay(100);
-    display_draw_text(SCREEN_WIDTH / 2.36 - 25, SCREEN_HEIGHT * .79, "NANO BRUTALITY", false);
-    display_draw_text(SCREEN_WIDTH / 4.6 - 25, SCREEN_HEIGHT * .3, "PRESS", false);
-    display_draw_text(SCREEN_WIDTH / 0.99 - 25, SCREEN_HEIGHT * .3, "FIRE", false);
-    display_draw_text(SCREEN_WIDTH / 4.6 - 25, SCREEN_HEIGHT * .91, "V 1.5", false);
+    display_draw_text(
+        SCREEN_WIDTH / 2 - 25,
+        SCREEN_HEIGHT * 0.8f,
+        "PRESS FIRE",
+        true);
 
-    display_update();
     sound_play(mus_s1_snd, MUS_S1_SND_LEN);
+
     if (input_fire())
         game_jump_to_scene(SCENE_DIFFICULTY);
-
-    // wait for fire
 }
 
-void game_run_difficulty_scene()
+void game_run_difficulty_scene(void)
 {
     platform_delay(200);
 
@@ -1447,8 +1456,6 @@ void game_run_difficulty_scene()
         fade_e = true;
         game_jump_to_scene(SCENE_MUSIC);
     }
-
-    display_update();
 }
 
 void game_run_music_scene(void)
@@ -1480,8 +1487,6 @@ void game_run_music_scene(void)
         fade_e = true;
         game_jump_to_scene(SCENE_STORY);
     }
-
-    display_update();
 }
 
 void game_run_level_scene(void)
@@ -1497,7 +1502,7 @@ void game_run_level_scene(void)
         coll = true;
     }
 
-    if (levelID == false)
+    if (game_level == E1M1)
     {
         k = player.keys;
     }
@@ -1516,7 +1521,7 @@ void game_run_level_scene(void)
         player.secret++;
     }
 
-    if (player.pos.x >= 46 && player.pos.x <= 47 && player.pos.y >= 35 && player.pos.y <= 36 && levelID == true)
+    if (player.pos.x >= 46 && player.pos.x <= 47 && player.pos.y >= 35 && player.pos.y <= 36 && game_level == E1M2)
     {
         player.pos.x = 12.5;
         player.pos.y = 33.5;
@@ -1525,14 +1530,14 @@ void game_run_level_scene(void)
         game_spawn_entity(E_ENEMY, 13, 38);
         bss = true;
     }
-    if (player.pos.y >= 55 && player.pos.y <= 56 && player.pos.x >= 12 && player.pos.x <= 23 && levelID == true)
+    if (player.pos.y >= 55 && player.pos.y <= 56 && player.pos.x >= 12 && player.pos.x <= 23 && game_level == E1M2)
     {
         mid = 3;
         m = false;
         sound_play(mus_s1_snd, MUS_S1_SND_LEN);
         game_jump_to_scene(SCENE_STORY);
     }
-    if (levelID == true && bss == true)
+    if (game_level == E1M2 && bss == true)
     {
         if (enemyCount == 1 || enemyCount == 5 || enemyCount == 9)
         {
@@ -1703,7 +1708,7 @@ void game_run_level_scene(void)
         }
         else if (gun_fired && !input_fire())
         {
-            // just fired and restored position
+            // Just fired and restored position
             gun_fired = false;
             reload1 = true;
         }
@@ -1713,6 +1718,37 @@ void game_run_level_scene(void)
             gun_fired = true;
             game_fire_shootgun();
         }
+
+        if (enemyCount == enemyGoal && game_level == E1M1)
+        {
+            z = 3;
+            updateHud();
+            z = 5;
+            updateHud();
+            if (del == 0)
+            {
+                platform_delay(200);
+                del++;
+            }
+            if (input_fire())
+            {
+                player.pos.x = 230;
+                player.pos.y = 50;
+                mid = 2;
+                enemyCount = 0;
+                z = 3;
+                updateHud();
+                game_jump_to_scene(SCENE_STORY);
+            }
+        }
+
+        game_update_position(
+            game_level,
+            &(player.pos),
+            player.dir.x * player.velocity * delta_time * vel,
+            player.dir.y * player.velocity * delta_time * vel, false);
+
+        game_update_entities(game_level);
     }
     else
     {
@@ -1736,79 +1772,6 @@ void game_run_level_scene(void)
             rc1 = 3;
         }
     }
-
-    if (fabsf(player.velocity) > 0.003)
-    {
-
-        if (levelID == false)
-        {
-            game_update_position(
-                E1M1,
-                &(player.pos),
-                player.dir.x * player.velocity * delta_time * vel,
-                player.dir.y * player.velocity * delta_time * vel, false);
-        }
-        if (levelID == true)
-        {
-            game_update_position(
-                E1M2,
-                &(player.pos),
-                player.dir.x * player.velocity * delta_time * vel,
-                player.dir.y * player.velocity * delta_time * vel, false);
-        }
-    }
-    else
-    {
-        player.velocity = 0;
-    }
-
-    if (enemyCount == enemyGoal && levelID == false)
-    {
-        z = 3;
-        updateHud();
-        z = 5;
-        updateHud();
-        if (del == 0)
-        {
-            platform_delay(200);
-            del++;
-        }
-        if (input_fire())
-        {
-            player.pos.x = 230;
-            player.pos.y = 50;
-            mid = 2;
-            enemyCount = 0;
-            z = 3;
-            updateHud();
-            game_jump_to_scene(SCENE_STORY);
-        }
-    }
-
-    // Update things
-    if (levelID == false)
-    {
-        game_update_entities(E1M1);
-    }
-    if (levelID == true)
-    {
-        game_update_entities(E1M2);
-    }
-
-    updateHud();
-
-    // Render stuff
-
-    if (levelID == false)
-    {
-        renderMap(E1M1, view_height);
-    }
-    else if (levelID == true)
-    {
-        renderMap(E1M2, view_height);
-    }
-
-    game_render_entities(view_height);
 
     if (reload1 == true)
     {
@@ -1842,122 +1805,57 @@ void game_run_level_scene(void)
         rc1 = 0;
     }
 
+    // Render stuff
+    updateHud();
+    game_render_map(game_level ? game_level : E1M2, view_height);
+    game_render_entities(view_height);
     game_render_gun(gun_pos, jogging, gun_fired, rc1);
 
     // Fade in effect
-    if (fade > 0)
+    if (fade_screen > 0)
     {
-        display_fade(fade, false);
-        fade--;
+        display_fade(fade_screen, false);
+        fade_screen--;
+        return;
+    }
+    game_render_hud();
 
-        if (fade == 0)
-        {
-            // Only draw the hud after fade in effect
-            game_render_hud();
-        }
-    }
-    else
+    // Flash screen
+    if (flash_screen)
     {
-        renderStats();
-    }
-
-    // flash screen
-    if (flash_screen > 0)
-    {
-        invert_screen = !invert_screen;
-        flash_screen--;
-    }
-    else if (invert_screen)
-    {
-        invert_screen = 0;
-    }
-    updateHud();
-
-    // Draw the frame
-    if (invert_screen)
         display_invert();
-    display_update();
+        flash_screen = false;
+    }
 
     // Exit routine
-    if (input_left() && input_right() && input_up() && input_down() && input_fire())
-    {
-        z = 3;
-        updateHud();
-        if (debug == true)
-        {
-            z = 3;
-            updateHud();
-            z = 10;
-            debug = false;
-            updateHud();
-        }
-        else
-        {
-            z = 3;
-            updateHud();
-            z = 11;
-            debug = true;
-            updateHud();
-            player.cheats = true;
-        }
-        updateHud();
-        platform_delay(500);
-    }
-}
+    if (input_exit())
+        game_jump_to_scene(SCENE_INTRO);
 
-void loop(void)
-{
-    switch (scene)
-    {
-    case INTRO:
-    {
-
-        game_run_intro_scene();
-        break;
-    }
-    case SCENE_SCORE:
-    {
-        game_run_score_scene();
-        break;
-    }
-    case SCENE_MUSIC:
-    {
-
-        game_run_music_scene();
-        break;
-    }
-    case SCENE_DIFFICULTY:
-    {
-        game_run_difficulty_scene();
-        break;
-    }
-    case SCENE_LEVEL:
-    {
-
-        game_run_level_scene();
-
-        break;
-    }
-    case SCENE_STORY:
-    {
-        game_run_story_scene();
-
-        break;
-    }
-    }
-
-    if (fade_e == true)
-    { // fade out effect
-        for (uint8_t i = 0; i < GRADIENT_COUNT; i++)
-        {
-            display_fade(i, 0);
-            display_update();
-            platform_delay(40);
-        }
-    }
-    exit_scene = false;
-
-    // Stop (so it doesn't repeat forever driving you crazy--you're welcome).
+    // Exit routine
+    // if (input_left() && input_right() && input_up() && input_down() && input_fire())
+    // {
+    //     z = 3;
+    //     updateHud();
+    //     if (debug == true)
+    //     {
+    //         z = 3;
+    //         updateHud();
+    //         z = 10;
+    //         debug = false;
+    //         updateHud();
+    //     }
+    //     else
+    //     {
+    //         z = 3;
+    //         updateHud();
+    //         z = 11;
+    //         debug = true;
+    //         updateHud();
+    //         player.cheats = true;
+    //     }
+    //     updateHud();
+    //     platform_delay(500);
+    // }
 }
 
 void main(void)
