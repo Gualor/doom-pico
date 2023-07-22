@@ -12,8 +12,6 @@
 
 /* Definitions -------------------------------------------------------------- */
 
-#define OPTIMIZE_DISPLAY
-#define ZBUFFER_SIZE (SCREEN_WIDTH / Z_RES_DIVIDER)
 #define DISPLAY_BUF_SIZE (SCREEN_WIDTH * ((SCREEN_HEIGHT + 7) / 8))
 
 /* Function prototypes ------------------------------------------------------ */

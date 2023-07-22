@@ -1,5 +1,6 @@
 /* Includes ----------------------------------------------------------------- */
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -105,7 +106,6 @@ static uint8_t num_static_entities = 0;
 static uint8_t x = 0;
 static uint8_t enemyCount = 0;
 static uint8_t del = 0;
-static uint8_t *game_level = E1M1;
 static uint8_t enemyGoal = 20;
 static bool fade_e = true;
 static bool debug = false;
@@ -127,6 +127,7 @@ static float view_height;
 static float jogging;
 static uint8_t fade_screen = GRADIENT_COUNT - 1;
 
+static const uint8_t *game_level = E1M1;
 static void (*game_run_scene)(void);
 
 // Jump to another scene
@@ -1062,8 +1063,8 @@ void game_render_entities(float view_height)
 void game_render_gun(uint8_t gun_pos, float amount_jogging, bool gun_fired, uint8_t r1)
 {
     // jogging
-    char x = 48 + sinf((float)platform_millis() * JOGGING_SPEED) * 10 * amount_jogging - 9;
-    char y = RENDER_HEIGHT - gun_pos + fabsf(cosf((float)platform_millis() * JOGGING_SPEED)) * 8 * amount_jogging - 3;
+    int8_t x = 48 + sinf((float)platform_millis() * JOGGING_SPEED) * 10 * amount_jogging - 9;
+    int8_t y = RENDER_HEIGHT - gun_pos + fabsf(cosf((float)platform_millis() * JOGGING_SPEED)) * 8 * amount_jogging - 3;
     uint8_t clip_height = MAX(0, MIN(y + BMP_GUN_HEIGHT, RENDER_HEIGHT) - y);
     if (gun_pos > GUN_SHOT_POS - 2)
     {
@@ -1606,13 +1607,13 @@ void game_run_level_scene(void)
             }
             else
             {
-                jogging = fabsf(player.velocity) * MOV_SPEED_INV * 2;
+                jogging = fabsf(player.velocity) * GUN_SPEED * 2;
             }
         }
         else if (input_down())
         {
 
-            jogging = fabsf(player.velocity) * MOV_SPEED_INV * 2;
+            jogging = fabsf(player.velocity) * GUN_SPEED * 2;
             player.velocity += (-MOV_SPEED - player.velocity) * .4;
             if (jump == 1 || jump == 2)
             {
@@ -1621,7 +1622,7 @@ void game_run_level_scene(void)
             }
             else
             {
-                jogging = fabsf(player.velocity) * MOV_SPEED_INV * 2;
+                jogging = fabsf(player.velocity) * GUN_SPEED * 2;
             }
         }
         else
@@ -1633,7 +1634,7 @@ void game_run_level_scene(void)
             }
             else
             {
-                jogging = fabsf(player.velocity) * MOV_SPEED_INV * 2;
+                jogging = fabsf(player.velocity) * GUN_SPEED * 2;
             }
             player.velocity *= .5;
         }
@@ -1763,7 +1764,7 @@ void game_run_level_scene(void)
 
         else if (input_fire())
         {
-            game_jump_to_scene(INTRO);
+            game_jump_to_scene(SCENE_INTRO);
         }
         if (gun_pos > 0)
             gun_pos -= 2;
