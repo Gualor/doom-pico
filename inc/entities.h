@@ -20,31 +20,31 @@ typedef uint16_t EntityUID;
 
 typedef enum
 {
-    E_FLOOR = 0x0, // . (also null)
-    E_WALL = 0xF,  // #
-    E_DOOR = 0xD,
-    E_DOOR2 = 0xA,
-    E_DOOR3 = 0xB,
-    E_COLL = 0xC,
-    E_PLAYER = 0x1,  // P
-    E_ENEMY = 0x2,   // E
-    E_EXIT = 0x7,    // X
-    E_MEDKIT = 0x8,  // M
-    E_KEY = 0x9,     // K
-    E_FIREBALL = 0xA // not in map
+    E_FLOOR    = 0x0,
+    E_WALL     = 0xF,
+    E_DOOR     = 0xD,
+    E_DOOR2    = 0xA,
+    E_DOOR3    = 0xB,
+    E_COLL     = 0xC,
+    E_PLAYER   = 0x1,
+    E_ENEMY    = 0x2,
+    E_EXIT     = 0x7,
+    E_MEDKIT   = 0x8,
+    E_AMMO     = 0x9,
+    E_FIREBALL = 0xA
 } EntityType;
 
 typedef enum
 {
-    S_STAND = 0,
-    S_ALERT = 1,
-    S_FIRING = 2,
-    S_MELEE = 3,
-    S_HIT = 4,
-    S_DEAD = 5,
-    S_HIDDEN = 6,
-    S_OPEN = 7,
-    S_CLOSE = 8,
+    S_STAND,
+    S_ALERT,
+    S_FIRING,
+    S_MELEE,
+    S_HIT,
+    S_DEAD,
+    S_HIDDEN,
+    S_OPEN,
+    S_CLOSE
 } EntityStatus;
 
 typedef struct
@@ -54,7 +54,7 @@ typedef struct
     Coords plane;
     float velocity;
     uint8_t health;
-    uint8_t keys;
+    uint8_t ammo;
     uint8_t secret;
     uint8_t secret2;
     uint8_t secret3;
@@ -119,7 +119,7 @@ static inline Player entities_create_player(uint8_t x, uint8_t y)
         .plane = {0.0f, -0.66f},
         .velocity = 0.0f,
         .health = 100,
-        .keys = 10,
+        .ammo = 10,
         .secret = 0,
         .secret2 = 0,
         .secret3 = 0,
@@ -177,7 +177,7 @@ static inline Entity entities_create_medkit(uint8_t x, uint8_t y)
 static inline Entity entities_create_key(uint8_t x, uint8_t y)
 {
     return (Entity){
-        .uid = entities_get_uid(E_KEY, x, y),
+        .uid = entities_get_uid(E_AMMO, x, y),
         .pos = {x + 0.5f, y + 0.5f},
         .state = S_STAND,
         .health = 100,
@@ -198,7 +198,7 @@ static inline Entity entities_create_key(uint8_t x, uint8_t y)
 static inline Entity entities_create_fireball(uint8_t x, uint8_t y, uint8_t dir)
 {
     return (Entity){
-        .uid = entities_get_uid(E_KEY, x, y),
+        .uid = entities_get_uid(E_AMMO, x, y),
         .pos = {x + 0.5f, y + 0.5f},
         .state = S_STAND,
         .health = dir,

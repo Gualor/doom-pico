@@ -308,7 +308,7 @@ void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y, uint8_t i)
  * @param color  Color value
  */
 void display_draw_bitmap(int16_t x, int16_t y, const uint8_t bitmap[],
-                         int16_t w, int16_t h, uint16_t color)
+                         int16_t w, int16_t h, bool color)
 {
     // Bitmap scanline pad = whole byte
     int16_t byteWidth = (w + 7) / 8;
