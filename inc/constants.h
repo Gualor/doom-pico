@@ -81,6 +81,8 @@
 #define AMMO_NUM_MEDIUM 10
 #define AMMO_NUM_HIGH 13
 
+#define TEXT_SPACING 1
+
 #endif /* CONSTANTS_H */
 
 /* -------------------------------------------------------------------------- */

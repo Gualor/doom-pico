@@ -33,6 +33,27 @@ typedef enum
     SCENE_SCORE
 } GameScene;
 
+typedef enum
+{
+    TEXT_BLANK_SPACE,
+    TEXT_FOUND_AMMO,
+    TEXT_FOUND_MEDKIT,
+    TEXT_FOUND_SECRET,
+    TEXT_GOAL_KILLS,
+    TEXT_GOAL_FIND_EXIT,
+    TEXT_GAME_OVER,
+    TEXT_YOU_WIN,
+    TEXT_DEBUG_MODE_ON,
+    TEXT_DEBUG_MODE_OFF
+} GameText;
+
+typedef enum
+{
+    DIFFICULTY_EASY,
+    DIFFICULTY_MEDIUM,
+    DIFFICULTY_HARD,
+} GameDifficulty;
+
 /* Function prototypes ------------------------------------------------------ */
 
 /* Level */
@@ -68,6 +89,7 @@ static void game_render_entities(float view_height);
 static void game_render_gun(uint8_t pos, float jogging, bool fired,
                             uint8_t reload);
 static void game_render_hud(void);
+static void game_render_hud_text(void);
 
 /* Scenes */
 static void game_jump_to_scene(GameScene scene);
@@ -77,8 +99,6 @@ static void game_run_music_scene(void);
 static void game_run_story_scene(void);
 static void game_run_level_scene(void);
 static void game_run_score_scene(void);
-
-void updateHud(void); /** TODO: merge with render HUD */
 
 /* Global variables --------------------------------------------------------- */
 
@@ -127,6 +147,7 @@ static float jogging;
 static bool flash_screen = false;
 static uint8_t fade_screen = GRADIENT_COUNT - 1;
 
+static GameText game_hud_text = TEXT_GOAL_KILLS;
 static const uint8_t *game_level = E1M1;
 static void (*game_run_scene)(void);
 
@@ -426,31 +447,28 @@ EntityUID game_detect_collision(const uint8_t level[], Coords *pos, float rel_x,
     uint8_t round_y = pos->y + rel_y;
     uint8_t block = game_get_level_entity(level, round_x, round_y);
 
-    if (block == E_WALL & debug == false)
+    if ((block == E_WALL) & (debug == false))
     {
         sound_play(hit_wall_snd, HIT_WALL_SND_LEN);
         return entities_get_uid(block, round_x, round_y);
     }
-    else if (block == E_DOOR && player.secret == false)
+    else if ((block == E_DOOR) && (player.secret == false))
     {
-        z = 8;
         player.secret = true;
-        updateHud();
+        game_hud_text = TEXT_FOUND_SECRET;
         sound_play(s_snd, S_SND_LEN);
     }
-    else if (block == E_DOOR2 && player.secret2 == false)
+    else if ((block == E_DOOR2) && (player.secret2 == false))
     {
-        z = 8;
         player.secret2 = true;
-        updateHud();
+        game_hud_text = TEXT_FOUND_SECRET;
         sound_play(s_snd, S_SND_LEN);
     }
-    else if (block == E_DOOR3 && player.secret3 == false)
+    else if ((block == E_DOOR3) && (player.secret3 == false))
     {
-        z = 8;
         player.secret3 = true;
+        game_hud_text = TEXT_FOUND_SECRET;
         sound_play(s_snd, S_SND_LEN);
-        updateHud();
     }
 
     if (only_walls)
@@ -517,7 +535,6 @@ void game_fire_shootgun(void)
 {
     if (player.ammo != 0)
     {
-        z = 3;
         sound_play(shoot_snd, SHOOT_SND_LEN);
         for (uint8_t i = 0; i < num_entities; i++)
         {
@@ -561,7 +578,6 @@ void game_fire_shootgun(void)
     }
     else
     {
-        z = 3;
         sound_play(melee_snd, MELEE_SND_LEN);
         for (uint8_t i = 0; i < num_entities; i++)
         {
@@ -602,8 +618,8 @@ void game_fire_shootgun(void)
         }
     }
 
-    /** TODO: move all rendering to the end of the scene not in the middle */
-    updateHud();
+    // Clear last HUD text after shooting
+    game_hud_text = TEXT_BLANK_SPACE;
 }
 
 /**
@@ -634,7 +650,6 @@ EntityType game_get_item_drop(void)
  */
 void game_update_entities(const uint8_t level[])
 {
-
     uint8_t i = 0;
     while (i < num_entities)
     {
@@ -672,6 +687,7 @@ void game_update_entities(const uint8_t level[])
             {
                 if (entity[i].state != S_DEAD)
                 {
+                    game_hud_text = TEXT_GOAL_KILLS;
                     entity[i].state = S_DEAD;
                     entity[i].timer = 6;
                 }
@@ -763,7 +779,6 @@ void game_update_entities(const uint8_t level[])
                         }
                         entity[i].timer = 14;
                         flash_screen = true;
-                        updateHud();
                     }
                 }
                 else
@@ -784,7 +799,6 @@ void game_update_entities(const uint8_t level[])
                 }
                 flash_screen = true;
                 game_remove_entity(entity[i].uid);
-                updateHud();
                 continue;
             }
             else
@@ -829,13 +843,7 @@ void game_update_entities(const uint8_t level[])
 
                 player.health = MIN(PLAYER_MAX_HEALTH, health);
                 flash_screen = true;
-
-                /** TODO: why so many updates of the HUD? */
-                updateHud();
-                z = 3;
-                updateHud();
-                z = 2;
-                updateHud();
+                game_hud_text = TEXT_FOUND_MEDKIT;
             }
             break;
         }
@@ -859,13 +867,7 @@ void game_update_entities(const uint8_t level[])
                     ammo = player.ammo + AMMO_NUM_LOW;
 
                 player.ammo = MIN(PLAYER_MAX_AMMO, ammo);
-
-                /** TODO: why so many updates of the HUD? */
-                updateHud();
-                z = 3;
-                updateHud();
-                z = 1;
-                updateHud();
+                game_hud_text = TEXT_FOUND_AMMO;
             }
             break;
         }
@@ -1209,127 +1211,80 @@ void game_render_gun(uint8_t pos, float jogging, bool fired, uint8_t reload)
     }
 }
 
-// Only needed first time
+/**
+ * @brief GAME render heads-up display (HUD).
+ *
+ */
 void game_render_hud(void)
 {
-    if (debug == false)
-    {
-        display_draw_text(2, 58, "{}", false);   // Health symbol
-        display_draw_text(105, 58, "[]", false); // Keys symbol
-        updateHud();
-    }
-    else
-    {
-        display_draw_text(2, 58, "X", false);   // Health symbol
-        display_draw_text(105, 58, "Y", false); // Keys symbol
-        updateHud();
-    }
+    display_draw_text(2, 58, "{}", false);
+    display_draw_text(103, 58, "[]", false);
+    display_draw_int(12, 58, player.health);
+    display_draw_int(113, 58, player.ammo);
 }
 
-// Render values for the HUD
-void updateHud(void)
+/**
+ * @brief GAME render text on heads-up display (HUD).
+ *
+ */
+void game_render_hud_text(void)
 {
-    display_draw_rect(12, 58, 100, 6, false);
-    display_draw_rect(50, 58, 15, 6, false);
-    display_draw_rect(58, 58, 70, 6, false);
+    char text[32];
 
-    if (z == 1)
+    switch (game_hud_text)
     {
-        display_draw_text(31, 58, "FOUND ", false);
-        display_draw_text(65, 58, " SHELLS", false);
+    case TEXT_BLANK_SPACE:
+        break;
+
+    case TEXT_FOUND_AMMO:
         if (game_difficulty == 1)
-        {
-            display_draw_text(57, 58, "13", false);
-        }
+            sprintf(text, "FOUND %d AMMO", 13);
         else if (game_difficulty == 2)
-        {
-            display_draw_text(57, 58, "10", false);
-        }
-        else
-        {
-            display_draw_text(60, 58, "9", false);
-        }
-    }
+            sprintf(text, "FOUND %d AMMO", 10);
+        else if (game_difficulty == 3)
+            sprintf(text, "FOUND %d AMMO", 9);
+        display_draw_text(33, 58, text, TEXT_SPACING);
+        break;
 
-    else if (z == 2)
-    {
-        display_draw_text(31, 58, "FOUND A MEDKIT", false);
-    }
-    else if (z == 3)
-    {
-        display_draw_rect(12, 58, 100, 6, false);
-        display_draw_rect(1, 58, 100, 6, false);
-        display_draw_rect(50, 58, 15, 6, false);
-        display_draw_rect(58, 58, 70, 6, false);
-    }
-    else if (z == 4)
-    {
-        display_draw_text(38, 58, "GAME OVER", false);
-    }
-    else if (z == 5)
-    {
-        display_draw_text(44, 58, "YOU WIN", false);
-    }
-    else if (z == 6)
-    {
-        display_draw_text(33, 58, "GOAL-20 KILLS", false);
-    }
-    else if (z == 7)
-    {
-        if (game_level == E1M2 && bss == true)
-        {
-            display_draw_int(37, 58, enemy_count2);
-            display_draw_text(52, 58, "OUT OF ", false);
-            display_draw_int(87, 58, enemy_goal2);
-        }
-        else if (game_level == E1M1)
-        {
-            display_draw_int(37, 58, enemy_count);
-            display_draw_text(52, 58, "OUT OF ", false);
-            display_draw_int(87, 58, enemy_goal);
-        }
-    }
-    else if (z == 8)
-    {
-        display_draw_text(35, 58, "SECRET FOUND", false);
-    }
-    else if (z == 9)
-    {
-        display_draw_text(31, 58, "GOAL-FIND EXIT", false);
-    }
-    else if (z == 10)
-    {
-        display_draw_text(31, 58, "DEBUG MODE OFF", false);
-    }
-    else
-    {
-        display_draw_text(32, 58, "DEBUG MODE ON", false);
-    }
+    case TEXT_FOUND_MEDKIT:
+        display_draw_text(33, 58, "FOUND MEDKIT", TEXT_SPACING);
+        break;
 
-    if (debug == false)
-    {
-        display_draw_rect(1, 58, 8, 6, false);
-        display_draw_text(2, 58, "{}", false);
-        display_draw_text(103, 58, "[]", false);
-        display_draw_int(12, 58, player.health);
-        display_draw_int(113, 58, player.ammo);
-    }
-    else
-    {
-        display_draw_rect(1, 58, 8, 6, false);
-        display_draw_text(2, 58, "X", false);
-        display_draw_text(105, 58, "Y", false);
-        char posx[10];
-        char posy[10];
-        sprintf(posx, "%f", player.pos.x);
-        sprintf(posy, "%f", player.pos.y);
-        display_draw_text(12, 58, posx, false);
-        display_draw_text(113, 58, posy, false);
+    case TEXT_FOUND_SECRET:
+        display_draw_text(33, 58, "FOUND SECRET", TEXT_SPACING);
+
+    case TEXT_GOAL_KILLS:
+        if (game_level == E1M1)
+            sprintf(text, "%d OUT OF %d", enemy_count, enemy_goal);
+        else if ((game_level == E1M2) && (bss == true))
+            sprintf(text, "%d OUT OF %d", enemy_count2, enemy_goal2);
+        display_draw_text(35, 58, text, TEXT_SPACING);
+        break;
+
+    case TEXT_GOAL_FIND_EXIT:
+        display_draw_text(33, 58, "FIND THE EXIT", TEXT_SPACING);
+        break;
+
+    case TEXT_GAME_OVER:
+        display_draw_text(38, 58, "GAME OVER", TEXT_SPACING);
+        break;
+
+    case TEXT_YOU_WIN:
+        display_draw_text(44, 58, "YOU WIN", TEXT_SPACING);
+        break;
+
+    case TEXT_DEBUG_MODE_ON:
+        display_draw_text(31, 58, "DEBUG MODE ON", TEXT_SPACING);
+        break;
+
+    case TEXT_DEBUG_MODE_OFF:
+        display_draw_text(31, 58, "DEBUG MODE OFF", TEXT_SPACING);
+        break;
+
+    default:
+        break;
     }
 }
-
-// Debug stats
-void renderStats(void) {}
 
 void softReset(void) {}
 
@@ -1637,16 +1592,7 @@ void game_run_level_scene(void)
         coll = true;
 
     if (game_level == E1M1)
-    {
         k = player.ammo;
-    }
-
-    display_draw_rect(1, 58, 100, 2, false);
-
-    updateHud();
-
-    // Clear only the 3d view
-    memset(display_buf, 0, SCREEN_WIDTH * (RENDER_HEIGHT / 8));
 
     if (player.pos.x >= 2 && player.pos.x <= 3 && player.pos.y >= 54 &&
         player.pos.y <= 55 && z == 1 && player.secret < 2)
@@ -1693,7 +1639,6 @@ void game_run_level_scene(void)
             player.pos.y = player.pos.y + 12;
             enemy_count = 0;
             enemy_count2 = 8;
-            updateHud();
         }
     }
 
@@ -1864,41 +1809,37 @@ void game_run_level_scene(void)
 
         if (enemy_count == enemy_goal && game_level == E1M1)
         {
-            z = 3;
-            updateHud();
-            z = 5;
-            updateHud();
+            game_hud_text = TEXT_YOU_WIN;
+
             if (del == 0)
             {
                 platform_delay(200);
                 del++;
             }
+
             if (input_fire())
             {
                 player.pos.x = 230;
                 player.pos.y = 50;
                 mid = 2;
                 enemy_count = 0;
-                z = 3;
-                updateHud();
-                game_jump_to_scene(SCENE_STORY);
+                game_hud_text = SCENE_STORY;
             }
         }
 
-        game_update_position(game_level, &(player.pos),
-                             player.dir.x * player.velocity * delta_time * vel,
-                             player.dir.y * player.velocity * delta_time * vel,
-                             false);
+        game_update_position(
+            game_level,
+            &(player.pos),
+            player.dir.x * player.velocity * delta_time * vel,
+            player.dir.y * player.velocity * delta_time * vel,
+            false);
 
         game_update_entities(game_level);
     }
     else
     {
         // The player is dead
-        z = 3;
-        updateHud();
-        z = 4;
-        updateHud();
+        game_hud_text = TEXT_GAME_OVER;
 
         if (view_height > -5)
             view_height--;
@@ -1948,7 +1889,6 @@ void game_run_level_scene(void)
     }
 
     // Render stuff
-    updateHud();
     game_render_map(game_level ? game_level : E1M2, view_height);
     game_render_entities(view_height);
     game_render_gun(gun_pos, jogging, gun_fired, rc1);
@@ -1961,6 +1901,7 @@ void game_run_level_scene(void)
         return;
     }
     game_render_hud();
+    game_render_hud_text();
 
     // Flash screen
     if (flash_screen)
