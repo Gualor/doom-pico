@@ -81,6 +81,11 @@
 #define AMMO_NUM_MEDIUM 10
 #define AMMO_NUM_HIGH 13
 
+#define E1M1_ENEMY_GOAL 20
+#define E1M2_ENEMY_GOAL 8
+
+#define SCORE_SECRET_ENDING 200
+
 #define TEXT_SPACING 1
 
 #endif /* CONSTANTS_H */

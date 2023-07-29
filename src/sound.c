@@ -42,7 +42,7 @@ void sound_play(const uint8_t *snd, uint8_t len)
     sound_t0 = platform_millis();
 
     // Execute platform audio player
-    platform_audio_play();
+    // platform_audio_play();
 }
 
 /**

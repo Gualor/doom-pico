@@ -109,8 +109,11 @@ void platform_draw_pixel(uint8_t x, uint8_t y, bool color)
  */
 void platform_audio_play(void)
 {
-    audio_is_playing = true;
-    ResumeAudioStream(audio_stream);
+    if (!audio_is_playing)
+    {
+        audio_is_playing = true;
+        ResumeAudioStream(audio_stream);
+    }
 }
 
 /**

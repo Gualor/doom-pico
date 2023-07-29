@@ -231,9 +231,9 @@ uint8_t display_get_byte(uint8_t x, uint8_t y)
  */
 void display_draw_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, bool color)
 {
-    for (uint8_t i = x; i < w; i++)
+    for (uint8_t i = x; i < x + w; i++)
     {
-        for (uint8_t j = y; j < h; j++)
+        for (uint8_t j = y; j < y + h; j++)
             display_draw_pixel(i, j, color, false);
     }
 }
