@@ -70,8 +70,12 @@ uint16_t sound_get_frequency(void)
         sound_t0 = sound_t1;
     }
 
+    // Pause sound
+    if (sound_ptr[sound_idx] == 0x00)
+        return 0;
+
     // Get frequency value from byte encoding
-    return 1192030 / (60 * (uint16_t)sound_ptr[0]);
+    return 1193181 / (60 * (uint16_t)sound_ptr[sound_idx]);
 }
 
 /* -------------------------------------------------------------------------- */

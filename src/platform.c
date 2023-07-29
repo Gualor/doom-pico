@@ -28,7 +28,7 @@
 /* Global variables --------------------------------------------------------- */
 
 static uint32_t clock_t0;
-static uint16_t old_frequency;
+static bool audio_is_playing;
 static AudioStream audio_stream;
 
 /* Function prototypes ------------------------------------------------------ */
@@ -58,6 +58,7 @@ void platform_init(void)
     PlayAudioStream(audio_stream);
     PauseAudioStream(audio_stream);
 
+    audio_is_playing = false;
     clock_t0 = clock();
 }
 
@@ -108,7 +109,7 @@ void platform_draw_pixel(uint8_t x, uint8_t y, bool color)
  */
 void platform_audio_play(void)
 {
-    old_frequency = 0;
+    audio_is_playing = true;
     ResumeAudioStream(audio_stream);
 }
 
@@ -130,21 +131,27 @@ void platform_audio_callback(void *buffer, unsigned int frames)
     // End of sound, pause stream
     if (frequency == 0)
     {
-        PauseAudioStream(audio_stream);
+        if (audio_is_playing)
+        {
+            audio_is_playing = false;
+            PauseAudioStream(audio_stream);
+        }
         return;
     }
-
-    // Same frequency as before, no need to update
-    if (frequency == old_frequency)
-        return;
+    else
+    {
+        if (!audio_is_playing)
+        {
+            audio_is_playing = true;
+            ResumeAudioStream(audio_stream);
+        }
+    }
 
     // Create square wave with given frequency
     uint16_t wave_length = AUDIO_SAMPLING_RATE / frequency;
     uint16_t *buf = (uint16_t *)buffer;
     for (uint16_t i = 0; i < frames; i++)
-        buf[i] = (i % wave_length) < wave_length / 2 ? SHRT_MAX : SHRT_MIN;
-
-    old_frequency = frequency;
+        buf[i] = (i % wave_length) < (wave_length / 2) ? SHRT_MAX : SHRT_MIN;
 }
 
 /**
@@ -275,6 +282,7 @@ void platform_delay(uint32_t ms)
 {
     /* Add definition here */
 }
+
 #endif /* USE_RAYLIB */
 
 /* -------------------------------------------------------------------------- */
