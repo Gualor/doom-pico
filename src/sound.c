@@ -13,9 +13,6 @@ static uint8_t sound_len;
 static uint8_t sound_idx;
 static uint32_t sound_t0;
 
-extern bool sound;
-extern uint8_t music;
-
 /* Function definitions ----------------------------------------------------- */
 
 /**
@@ -26,9 +23,6 @@ void sound_init(void)
 {
     sound_ptr = NULL;
     sound_len = 0;
-
-    sound = false;
-    music = 0;
 }
 
 /**
@@ -77,7 +71,7 @@ uint16_t sound_get_frequency(void)
     }
 
     // Get frequency value from byte encoding
-    return 1192030 / (60 * (uint16_t)sound_ptr[sound_idx]);
+    return 1192030 / (60 * (uint16_t)sound_ptr[0]);
 }
 
 /* -------------------------------------------------------------------------- */

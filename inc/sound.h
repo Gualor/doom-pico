@@ -208,11 +208,6 @@ void sound_play(const uint8_t *snd, uint8_t len);
  */
 uint16_t sound_get_frequency(void);
 
-/* Global variables --------------------------------------------------------- */
-
-bool sound;
-uint8_t music;
-
 #endif /* SOUND_H */
 
 /* -------------------------------------------------------------------------- */

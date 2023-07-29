@@ -153,18 +153,24 @@ void platform_audio_callback(void *buffer, unsigned int frames)
  */
 void platform_input_update(void)
 {
+    input_button = 0;
+
     if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W))
-        input_button = UP;
-    else if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S))
-        input_button = DOWN;
-    else if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A))
-        input_button = LEFT;
-    else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D))
-        input_button = RIGHT;
-    else if (IsKeyDown(KEY_SPACE))
-        input_button = Y;
-    else if (IsKeyDown(KEY_ESCAPE))
-        input_button = SELECT;
+        input_button |= UP;
+    if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S))
+        input_button |= DOWN;
+    if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A))
+        input_button |= LEFT;
+    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D))
+        input_button |= RIGHT;
+    if (IsKeyDown(KEY_SPACE))
+        input_button |= FIRE;
+    if (IsKeyDown(KEY_LEFT_SHIFT))
+        input_button |= JUMP;
+    if (IsKeyDown(KEY_ENTER))
+        input_button |= HOME;
+    if (IsKeyDown(KEY_ESCAPE))
+        input_button |= EXIT;
 }
 
 /**

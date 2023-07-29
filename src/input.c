@@ -78,7 +78,27 @@ bool input_right(void)
  */
 bool input_fire(void)
 {
-    return input_button & Y;
+    return input_button & FIRE;
+};
+
+/**
+ * @brief INPUT check if jump button has been pressed.
+ * 
+ * @return bool button is pressed
+ */
+bool input_jump(void)
+{
+    return input_button & JUMP;
+};
+
+/**
+ * @brief INPUT check if home button has been pressed.
+ * 
+ * @return bool button is pressed
+ */
+bool input_home(void)
+{
+    return input_button & HOME;
 };
 
 /**
@@ -88,7 +108,7 @@ bool input_fire(void)
  */
 bool input_exit(void)
 {
-    return input_button & SELECT;
+    return input_button & EXIT;
 }
 
 /* -------------------------------------------------------------------------- */
