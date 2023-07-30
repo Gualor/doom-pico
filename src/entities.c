@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 #include "entities.h"
-#include "constants.h"
+#include "level.h"
 
 /* Function definitions ----------------------------------------------------- */
 

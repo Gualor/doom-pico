@@ -231,9 +231,9 @@ uint8_t display_get_byte(uint8_t x, uint8_t y)
  */
 void display_draw_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, bool color)
 {
-    for (uint8_t i = x; i < w; i++)
+    for (uint8_t i = x; i < x + w; i++)
     {
-        for (uint8_t j = y; j < h; j++)
+        for (uint8_t j = y; j < y + h; j++)
             display_draw_pixel(i, j, color, false);
     }
 }
@@ -255,7 +255,7 @@ void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y, uint8_t i)
     int8_t lower_y = MAX(MIN(start_y, end_y), 0);
     int8_t higher_y = MIN(MAX(start_y, end_y), RENDER_HEIGHT - 1);
 
-#ifdef OPTIMIZE_DISPLAY
+#if OPTIMIZE_RAYCASTING
     for (uint8_t c = 0; c < RES_DIVIDER; c++)
     {
         uint8_t bp;
@@ -308,7 +308,7 @@ void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y, uint8_t i)
  * @param color  Color value
  */
 void display_draw_bitmap(int16_t x, int16_t y, const uint8_t bitmap[],
-                         int16_t w, int16_t h, uint16_t color)
+                         int16_t w, int16_t h, bool color)
 {
     // Bitmap scanline pad = whole byte
     int16_t byteWidth = (w + 7) / 8;

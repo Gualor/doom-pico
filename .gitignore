@@ -1,3 +1,4 @@
-.vscode
 bin
-lib
+raylib
+doom_pico*
+.vscode

@@ -28,11 +28,15 @@ void sound_init(void)
 /**
  * @brief SOUND update sound and execute platform audio player.
  *
- * @param snd Sound byte array
- * @param len Byte length of sound
+ * @param snd    Sound byte array
+ * @param len    Byte length of sound
+ * @param enable Enable speakers
  */
-void sound_play(const uint8_t *snd, uint8_t len)
+void sound_play(const uint8_t *snd, uint8_t len, bool enable)
 {
+    if (!enable)
+        return;
+
     // Assign new sound effect
     sound_ptr = (uint8_t *)snd;
     sound_len = len;
@@ -70,8 +74,12 @@ uint16_t sound_get_frequency(void)
         sound_t0 = sound_t1;
     }
 
+    // Pause sound
+    if (sound_ptr[sound_idx] == 0x00)
+        return 0;
+
     // Get frequency value from byte encoding
-    return 1192030 / (60 * (uint16_t)sound_ptr[sound_idx]);
+    return 1193181 / (60 * (uint16_t)sound_ptr[sound_idx]);
 }
 
 /* -------------------------------------------------------------------------- */

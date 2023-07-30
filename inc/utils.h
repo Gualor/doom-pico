@@ -14,6 +14,11 @@
 #define READ_BIT(byte, pos) (byte & *(BIT_MASK + pos) ? 1 : 0)
 #define PI 3.14159265358979323846f
 
+/* Function prototypes ------------------------------------------------------ */
+
+uint32_t millis(void);
+void delay(uint32_t ms);
+
 #endif /* UTILS_H */
 
 /* -------------------------------------------------------------------------- */

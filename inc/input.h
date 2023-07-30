@@ -11,18 +11,14 @@
 
 typedef enum
 {
-    B = 0x0001,
-    Y = 0x0002,
-    SELECT = 0x0004,
-    START = 0x0008,
-    UP = 0x0010,
-    DOWN = 0x0020,
-    LEFT = 0x0040,
-    RIGHT = 0x0080,
-    A = 0x0100,
-    X = 0x0200,
-    LB = 0x0400,
-    RB = 0x0800
+    UP    = 0b00000001,
+    DOWN  = 0b00000010,
+    LEFT  = 0b00000100,
+    RIGHT = 0b00001000,
+    FIRE  = 0b00010000,
+    JUMP  = 0b00100000,
+    HOME  = 0b01000000,
+    EXIT  = 0b10000000
 } Buttons;
 
 /* Function prototypes ------------------------------------------------------ */
@@ -73,6 +69,20 @@ bool input_right(void);
  * @return bool button is pressed
  */
 bool input_fire(void);
+
+/**
+ * @brief INPUT check if jump button has been pressed.
+ * 
+ * @return bool button is pressed
+ */
+bool input_jump(void);
+
+/**
+ * @brief INPUT check if home button has been pressed.
+ * 
+ * @return bool button is pressed
+ */
+bool input_home(void);
 
 /**
  * @brief INPUT check if exit button has been pressed.
