@@ -1806,7 +1806,7 @@ void main(void)
         input_update();
 
         /* Run current game scene */
-        game_run_score_scene();
+        game_run_scene();
 
         /* Stop drawing */
         display_draw_stop();
