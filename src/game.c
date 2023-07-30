@@ -201,10 +201,6 @@ void game_init_level_scene(const uint8_t level[])
             if (block == E_PLAYER)
             {
                 player = entities_create_player(x, y);
-                player.pos.y = 55.0f;
-                player.pos.x = 12.0f;
-                game_level = level_e1m2;
-                game_boss_fight=true;
                 return;
             }
 
