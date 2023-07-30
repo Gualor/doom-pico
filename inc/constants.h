@@ -33,10 +33,11 @@
 /* Display */
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
-#define HALF_WIDTH (SCREEN_WIDTH / 2)
-#define HALF_HEIGHT (SCREEN_HEIGHT / 2)
 #define RENDER_HEIGHT 58
 #define HUD_HEIGHT 6
+
+#define COLOR_BLACK 0
+#define COLOR_WHITE 1
 
 /* Level */
 #define LEVEL_WIDTH_BASE 6
@@ -58,7 +59,6 @@
 
 #define MAX_ENTITIES 12
 #define MAX_STATIC_ENTITIES 24
-
 #define MAX_ENTITY_DISTANCE 200
 #define MAX_ENEMY_VIEW 90
 #define ITEM_COLLIDER_DIST 6
@@ -89,12 +89,12 @@
 #define AMMO_PICKUP_MED 10
 #define AMMO_PICKUP_HIGH 13
 
-#define E1M1_ENEMY_GOAL 20
-#define E1M2_ENEMY_GOAL 8
+#define ENEMY_GOAL1 20
+#define ENEMY_GOAL2 8
 
 #define SCORE_SECRET_ENDING 200
 
-#define TEXT_SPACING 1
+#define BUTTON_PRESS_WAIT 200
 
 #endif /* CONSTANTS_H */
 
