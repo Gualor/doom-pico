@@ -9,7 +9,7 @@
 
 /* Definitions -------------------------------------------------------------- */
 
-#define bmp_font_width 24 // in bytes
+#define bmp_font_width 24
 #define bmp_font_height 6
 #define CHAR_MAP " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ.,-_(){}[]#"
 #define CHAR_WIDTH 4

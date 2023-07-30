@@ -19,8 +19,6 @@
 #include "sprites.h"
 #include "utils.h"
 
-/** TODO: verify if using pointers instead of returning struct is faster */
-
 /* Data types --------------------------------------------------------------- */
 
 typedef enum
@@ -76,7 +74,7 @@ static void game_spawn_entity(EntityType type, uint8_t x, uint8_t y);
 static void game_spawn_fireball(float x, float y);
 static void game_remove_entity(EntityUID uid);
 static void game_remove_static_entity(EntityUID uid);
-static void game_clear_dead_enemy(void);
+static void game_remove_dead_enemy(void);
 static void game_update_entities(const uint8_t level[]);
 static void game_sort_entities(void);
 
@@ -112,50 +110,50 @@ static void game_run_score_scene(void);
 
 /* Global variables --------------------------------------------------------- */
 
-static bool coll = false;
-static uint8_t jump_state = 0;
-static uint8_t jump_height = 0;
-static uint8_t noclip = 0;
-static bool music_enable = false;
-static int16_t a = 0;
-// game
-// player and entities
+/* Player */
 static Player player;
+static bool player_walk_sound = false;
+static float player_view_height = 0.0f;
+static float player_jogging = 0.0f;
+static uint8_t player_jump_state = 0;
+static uint8_t player_jump_height = 0;
+
+/* Entities */
 static Entity entity[MAX_ENTITIES];
 static uint8_t num_entities = 0;
 static StaticEntity static_entity[MAX_STATIC_ENTITIES];
 static uint8_t num_static_entities = 0;
 
-static uint8_t del = 0;
-static uint8_t game_kill_count = 0;
-static uint8_t game_kill_goal = ENEMY_KILL_GOAL1;
-static int16_t game_score;
-static bool game_boss_fight = false;
-// init
+/* Gun */
 static bool gun_fired = false;
 static bool gun_reload = false;
+static uint8_t gun_position = 0;
 static uint8_t gun_reload_state = 0;
 static uint8_t gun_reload_animation = 0;
 
-static bool player_walk_sound = false;
-static uint8_t gun_position = 0;
-static float player_view_height;
-static float player_jogging;
-
+/* Display */
 static bool screen_flash = false;
 static uint8_t screen_fade = GRADIENT_COUNT - 1;
-static uint32_t button_press_time = 0;
+
+/* Game */
+static uint32_t game_button_time = 0;
+static bool game_music_enable = false;
+static GameCutscene game_cutscene = CUTSCENE_INTRO;
+static GameDifficulty game_difficulty = DIFFICULTY_EASY;
+static GameText game_hud_text = TEXT_BLANK_SPACE;
+static const uint8_t *game_level = level_e1m1;
+static void (*game_run_scene)(void) = game_run_intro_scene;
+
+static int16_t game_score = 0;
+static uint8_t game_kill_count = 0;
+static uint8_t game_kill_goal = ENEMY_KILL_GOAL1;
+static bool game_boss_fight = false;
 
 static uint8_t enemy_melee_damage = ENEMY_MELEE_DAMAGE_EASY;
 static uint8_t enemy_fireball_damage = ENEMY_FIREBALL_DAMAGE_EASY;
 static uint8_t player_max_damage = GUN_MAX_DAMAGE_EASY;
 static uint8_t medkit_heal_value = MEDKIT_HEAL_EASY;
 static uint8_t ammo_pickup_value = AMMO_PICKUP_EASY;
-static GameCutscene game_cutscene = CUTSCENE_INTRO;
-static GameDifficulty game_difficulty = DIFFICULTY_EASY;
-static GameText game_hud_text = TEXT_GOAL_KILLS;
-static const uint8_t *game_level = E1M1;
-static void (*game_run_scene)(void);
 
 /* Function definitions ----------------------------------------------------- */
 
@@ -166,28 +164,33 @@ static void (*game_run_scene)(void);
  */
 void game_init_level_scene(const uint8_t level[])
 {
-    /** TODO: move this stuff somewhere else */
+    /* Player */
+    player_walk_sound = false;
+    player_view_height = 0.0f;
+    player_jogging = 0.0f;
+    player_jump_state = 0;
+    player_jump_height = 0;
+
+    /* Entities */
+    memset(entity, 0x00, sizeof(Entity) * MAX_ENTITIES);
+    num_entities = 0;
+    memset(static_entity, 0x00, sizeof(StaticEntity) * MAX_STATIC_ENTITIES);
+    num_static_entities = 0;
+
+    /* Gun */
     gun_position = 0;
     gun_fired = false;
     gun_reload = false;
     gun_reload_state = 0;
     gun_reload_animation = 0;
 
-    player_walk_sound = false;
-    player_view_height = 0.0f;
-    player_jogging = 0.0f;
-
-    // Initialize game entities
-    memset(entity, 0x00, sizeof(Entity) * MAX_ENTITIES);
-    memset(static_entity, 0x00, sizeof(StaticEntity) * MAX_STATIC_ENTITIES);
-    num_entities = 0;
-    num_static_entities = 0;
-
-    // Initialize screen effects
-    screen_flash = false;
-
-    // Initialize audio effects
-    player_walk_sound = false;
+    /* Game */
+    game_kill_count = 0;
+    game_boss_fight = false;
+    if (game_level == level_e1m1)
+        game_hud_text = TEXT_GOAL_KILLS;
+    else if ((game_level == level_e1m2) && (!game_boss_fight))
+        game_hud_text = TEXT_GOAL_FIND_EXIT;
 
     // Find player in the map and create instance
     for (uint8_t y = LEVEL_HEIGHT - 1; y >= 0; y--)
@@ -195,10 +198,13 @@ void game_init_level_scene(const uint8_t level[])
         for (uint8_t x = 0; x < LEVEL_WIDTH; x++)
         {
             uint8_t block = game_get_level_entity(level, x, y);
-
             if (block == E_PLAYER)
             {
                 player = entities_create_player(x, y);
+                player.pos.y = 55.0f;
+                player.pos.x = 12.0f;
+                game_level = level_e1m2;
+                game_boss_fight=true;
                 return;
             }
 
@@ -381,7 +387,7 @@ void game_remove_static_entity(EntityUID uid)
  * @brief GAME clear farthest dead enemy entity.
  *
  */
-void game_clear_dead_enemy(void)
+void game_remove_dead_enemy(void)
 {
     uint8_t i = num_entities - 1;
     while (i >= 0)
@@ -397,190 +403,6 @@ void game_clear_dead_enemy(void)
 }
 
 /**
- * @brief GAME detect collision between entities and level blocks.
- *
- * @param level      Level byte map
- * @param pos        Position to be checked
- * @param rel_x      X relative direction
- * @param rel_y      Y relative direction
- * @param only_walls Check only walls collisions
- * @return EntityUID Entity UID number
- */
-EntityUID game_detect_collision(const uint8_t level[], Coords *pos,
-                                float rel_x, float rel_y, bool only_walls)
-{
-    // Wall collision
-    uint8_t round_x = pos->x + rel_x;
-    uint8_t round_y = pos->y + rel_y;
-    uint8_t block = game_get_level_entity(level, round_x, round_y);
-
-    if (block == E_WALL)
-    {
-        sound_play(hit_wall_snd, HIT_WALL_SND_LEN, music_enable);
-        return entities_get_uid(block, round_x, round_y);
-    }
-    else if ((block == E_DOOR) && (player.secret == false))
-    {
-        player.secret = true;
-        game_hud_text = TEXT_FOUND_SECRET;
-        sound_play(s_snd, S_SND_LEN, music_enable);
-    }
-    else if ((block == E_DOOR2) && (player.secret2 == false))
-    {
-        player.secret2 = true;
-        game_hud_text = TEXT_FOUND_SECRET;
-        sound_play(s_snd, S_SND_LEN, music_enable);
-    }
-    else if ((block == E_DOOR3) && (player.secret3 == false))
-    {
-        player.secret3 = true;
-        game_hud_text = TEXT_FOUND_SECRET;
-        sound_play(s_snd, S_SND_LEN, music_enable);
-    }
-
-    if (only_walls)
-        return UID_NULL;
-
-    // Entity collision
-    for (uint8_t i = 0; i < num_entities; i++)
-    {
-        // Don't collide with itself
-        if (&(entity[i].pos) == pos)
-            continue;
-
-        EntityType type = entities_get_type(entity[i].uid);
-
-        // Only ALIVE enemy collision
-        if ((type != E_ENEMY) ||
-            (entity[i].state == S_DEAD) ||
-            (entity[i].state == S_HIDDEN))
-            continue;
-
-        Coords new_coords = {entity[i].pos.x - rel_x, entity[i].pos.y - rel_y};
-        uint8_t distance = coords_get_distance(pos, &new_coords);
-
-        // Check distance and if it's getting closer
-        if ((distance < ENEMY_COLLIDER_DIST) &&
-            (distance < entity[i].distance))
-            return entity[i].uid;
-    }
-
-    return UID_NULL;
-}
-
-/**
- * @brief GAME update position if possible, otherwise return collided uid.
- *
- * @param level      Level byte map
- * @param pos        Position to be checked
- * @param rel_x      X relative direction
- * @param rel_y      Y relative direction
- * @param only_walls Check only walls collisions
- * @return EntityUID Entity UID number
- */
-EntityUID game_update_position(const uint8_t level[], Coords *pos, float rel_x,
-                               float rel_y, bool only_walls)
-{
-    EntityUID collide_x = game_detect_collision(
-        level, pos, rel_x, 0.0f, only_walls);
-    EntityUID collide_y = game_detect_collision(
-        level, pos, 0.0f, rel_y, only_walls);
-
-    if (!collide_x)
-        pos->x += rel_x;
-    if (!collide_y)
-        pos->y += rel_y;
-
-    return (collide_x || collide_y || UID_NULL);
-}
-
-/**
- * @brief GAME player fire shootgun and compute damage.
- *
- */
-void game_fire_shootgun(void)
-{
-    sound_play(shoot_snd, SHOOT_SND_LEN, music_enable);
-    for (uint8_t i = 0; i < num_entities; i++)
-    {
-        // Shoot only ALIVE enemies
-        if ((entities_get_type(entity[i].uid) != E_ENEMY) ||
-            (entity[i].state == S_DEAD) ||
-            (entity[i].state == S_HIDDEN))
-            continue;
-
-        Coords transform = game_translate_into_view(&(entity[i].pos));
-        if ((fabsf(transform.x) < 20.0f) && (transform.y > 0.0f))
-        {
-            // Damage decrease with distance
-            uint8_t damage = MIN(
-                player_max_damage,
-                (player_max_damage /
-                 (fabsf(transform.x) * entity[i].distance) / 5.0f));
-
-            entity[i].health = MAX(0, entity[i].health - damage);
-            entity[i].state = S_HIT;
-            entity[i].timer = 2;
-        }
-    }
-}
-
-/**
- * @brief GAME player perform melee attack and compute damage.
- *
- */
-void game_melee_attack(void)
-{
-    sound_play(melee_snd, MELEE_SND_LEN, music_enable);
-    for (uint8_t i = 0; i < num_entities; i++)
-    {
-        if (entity[i].distance <= ENEMY_MELEE_DIST)
-        {
-            // Attack only ALIVE enemies
-            if ((entities_get_type(entity[i].uid) != E_ENEMY) ||
-                (entity[i].state == S_DEAD) ||
-                (entity[i].state == S_HIDDEN))
-                continue;
-
-            Coords transform = game_translate_into_view(&(entity[i].pos));
-            if ((fabsf(transform.x) < 20.0f) && (transform.y > 0.0f))
-            {
-                // Damage decrease with distance
-                uint8_t damage = MIN(
-                    player_max_damage,
-                    (player_max_damage /
-                     (fabsf(transform.x) * entity[i].distance) / 5.0f));
-
-                entity[i].health = MAX(0, entity[i].health - damage);
-                entity[i].state = S_HIT;
-                entity[i].timer = 2;
-            }
-        }
-    }
-}
-
-/**
- * @brief GAME get random item drop.
- *
- * @return EntityType Random item between ammo, medkit, or nothing
- */
-EntityType game_get_item_drop(void)
-{
-    EntityType item = 0;
-
-    uint8_t random_item = rand() % 4;
-    if (random_item > 0)
-    {
-        if (random_item < 3)
-            item = E_AMMO;
-        else
-            item = E_MEDKIT;
-    }
-
-    return item;
-}
-
-/**
  * @brief GAME execute entities AI logic.
  *
  * @param level Level byte map
@@ -590,23 +412,27 @@ void game_update_entities(const uint8_t level[])
     uint8_t i = 0;
     while (i < num_entities)
     {
-        // update distance
+        // Update distance
         entity[i].distance = coords_get_distance(&(player.pos),
                                                  &(entity[i].pos));
 
         // Run the timer. Works with actual frames.
-        // TODO: use delta_time here. But needs float type and more memory
         if (entity[i].timer > 0)
             entity[i].timer--;
 
-        // too far away. put it in doze mode
+        // Keep dead entities number under control
+        if (num_entities > MAX_ENTITIES)
+            game_remove_dead_enemy();
+
+        // Too far away. put it in doze mode
         if (entity[i].distance > MAX_ENTITY_DISTANCE)
         {
             game_remove_entity(entity[i].uid);
             // Don't increase 'i', since current one has been removed
             continue;
         }
-        // bypass render if hidden
+
+        // Bypass render if hidden
         if (entity[i].state == S_HIDDEN)
         {
             i++;
@@ -615,7 +441,6 @@ void game_update_entities(const uint8_t level[])
 
         switch (entities_get_type(entity[i].uid))
         {
-        /** TODO: move enemy AI to separate function */
         case E_ENEMY:
         {
             // Enemy "IA"
@@ -623,7 +448,8 @@ void game_update_entities(const uint8_t level[])
             {
                 if (entity[i].state != S_DEAD)
                 {
-                    game_hud_text = TEXT_GOAL_KILLS;
+                    if (game_level == level_e1m1)
+                        game_hud_text = TEXT_GOAL_KILLS;
                     entity[i].state = S_DEAD;
                     entity[i].timer = 6;
                 }
@@ -746,10 +572,10 @@ void game_update_entities(const uint8_t level[])
         {
             if ((entity[i].distance < ITEM_COLLIDER_DIST) &&
                 (player.health != PLAYER_MAX_HEALTH) &&
-                (jump_height < 14))
+                (player_jump_height < 14))
             {
                 // Pickup
-                sound_play(medkit_snd, MEDKIT_SND_LEN, music_enable);
+                sound_play(medkit_snd, MEDKIT_SND_LEN, game_music_enable);
                 entity[i].state = S_HIDDEN;
 
                 player.health = MIN(
@@ -764,10 +590,10 @@ void game_update_entities(const uint8_t level[])
         {
             if ((entity[i].distance < ITEM_COLLIDER_DIST) &&
                 (player.ammo < PLAYER_MAX_AMMO) &&
-                (jump_height < 14))
+                (player_jump_height < 14))
             {
                 // Pickup
-                sound_play(get_key_snd, GET_KEY_SND_LEN, music_enable);
+                sound_play(get_key_snd, GET_KEY_SND_LEN, game_music_enable);
                 entity[i].state = S_HIDDEN;
                 player.ammo = MIN(
                     PLAYER_MAX_AMMO, player.ammo + ammo_pickup_value);
@@ -782,6 +608,243 @@ void game_update_entities(const uint8_t level[])
 
         i++;
     }
+}
+
+/**
+ * @brief GAME sort entities from far to close.
+ *
+ */
+void game_sort_entities(void)
+{
+    uint8_t gap = num_entities;
+    bool swapped = false;
+    while ((gap > 1) || (swapped))
+    {
+        // shrink factor 1.3
+        gap = (gap * 10) / 13;
+        if ((gap == 9) || (gap == 10))
+            gap = 11;
+        if (gap < 1)
+            gap = 1;
+
+        swapped = false;
+        for (uint8_t i = 0; i < num_entities - gap; i++)
+        {
+            uint8_t j = i + gap;
+            if (entity[i].distance < entity[j].distance)
+            {
+                SWAP(entity[i], entity[j]);
+                swapped = true;
+            }
+        }
+    }
+}
+
+/**
+ * @brief GAME detect collision between entities and level blocks.
+ *
+ * @param level      Level byte map
+ * @param pos        Position to be checked
+ * @param rel_x      X relative direction
+ * @param rel_y      Y relative direction
+ * @param only_walls Check only walls collisions
+ * @return EntityUID Entity UID number
+ */
+EntityUID game_detect_collision(const uint8_t level[], Coords *pos,
+                                float rel_x, float rel_y, bool only_walls)
+{
+    // Wall collision
+    uint8_t round_x = pos->x + rel_x;
+    uint8_t round_y = pos->y + rel_y;
+    uint8_t block = game_get_level_entity(level, round_x, round_y);
+
+    if (block == E_WALL)
+    {
+        sound_play(hit_wall_snd, HIT_WALL_SND_LEN, game_music_enable);
+        return entities_get_uid(block, round_x, round_y);
+    }
+    else if ((block == E_DOOR) && (player.secret == false))
+    {
+        player.secret = true;
+        game_hud_text = TEXT_FOUND_SECRET;
+        sound_play(s_snd, S_SND_LEN, game_music_enable);
+    }
+    else if ((block == E_DOOR2) && (player.secret2 == false))
+    {
+        player.secret2 = true;
+        game_hud_text = TEXT_FOUND_SECRET;
+        sound_play(s_snd, S_SND_LEN, game_music_enable);
+    }
+    else if ((block == E_DOOR3) && (player.secret3 == false))
+    {
+        player.secret3 = true;
+        game_hud_text = TEXT_FOUND_SECRET;
+        sound_play(s_snd, S_SND_LEN, game_music_enable);
+    }
+
+    if (only_walls)
+        return UID_NULL;
+
+    // Entity collision
+    for (uint8_t i = 0; i < num_entities; i++)
+    {
+        // Don't collide with itself
+        if (&(entity[i].pos) == pos)
+            continue;
+
+        EntityType type = entities_get_type(entity[i].uid);
+
+        // Only ALIVE enemy collision
+        if ((type != E_ENEMY) ||
+            (entity[i].state == S_DEAD) ||
+            (entity[i].state == S_HIDDEN))
+            continue;
+
+        Coords new_coords = {entity[i].pos.x - rel_x, entity[i].pos.y - rel_y};
+        uint8_t distance = coords_get_distance(pos, &new_coords);
+
+        // Check distance and if it's getting closer
+        if ((distance < ENEMY_COLLIDER_DIST) &&
+            (distance < entity[i].distance))
+            return entity[i].uid;
+    }
+
+    return UID_NULL;
+}
+
+/**
+ * @brief GAME update position if possible, otherwise return collided uid.
+ *
+ * @param level      Level byte map
+ * @param pos        Position to be checked
+ * @param rel_x      X relative direction
+ * @param rel_y      Y relative direction
+ * @param only_walls Check only walls collisions
+ * @return EntityUID Entity UID number
+ */
+EntityUID game_update_position(const uint8_t level[], Coords *pos, float rel_x,
+                               float rel_y, bool only_walls)
+{
+    EntityUID collide_x = game_detect_collision(
+        level, pos, rel_x, 0.0f, only_walls);
+    EntityUID collide_y = game_detect_collision(
+        level, pos, 0.0f, rel_y, only_walls);
+
+    if (!collide_x)
+        pos->x += rel_x;
+    if (!collide_y)
+        pos->y += rel_y;
+
+    return (collide_x || collide_y || UID_NULL);
+}
+
+/**
+ * @brief GAME player fire shootgun and compute damage.
+ *
+ */
+void game_fire_shootgun(void)
+{
+    sound_play(shoot_snd, SHOOT_SND_LEN, game_music_enable);
+    for (uint8_t i = 0; i < num_entities; i++)
+    {
+        // Shoot only ALIVE enemies
+        if ((entities_get_type(entity[i].uid) != E_ENEMY) ||
+            (entity[i].state == S_DEAD) ||
+            (entity[i].state == S_HIDDEN))
+            continue;
+
+        Coords transform = game_translate_into_view(&(entity[i].pos));
+        if ((fabsf(transform.x) < 20.0f) && (transform.y > 0.0f))
+        {
+            // Damage decrease with distance
+            uint8_t damage = MIN(
+                player_max_damage,
+                (player_max_damage /
+                 (fabsf(transform.x) * entity[i].distance) / 5.0f));
+
+            entity[i].health = MAX(0, entity[i].health - damage);
+            entity[i].state = S_HIT;
+            entity[i].timer = 2;
+        }
+    }
+}
+
+/**
+ * @brief GAME player perform melee attack and compute damage.
+ *
+ */
+void game_melee_attack(void)
+{
+    sound_play(melee_snd, MELEE_SND_LEN, game_music_enable);
+    for (uint8_t i = 0; i < num_entities; i++)
+    {
+        if (entity[i].distance <= ENEMY_MELEE_DIST)
+        {
+            // Attack only ALIVE enemies
+            if ((entities_get_type(entity[i].uid) != E_ENEMY) ||
+                (entity[i].state == S_DEAD) ||
+                (entity[i].state == S_HIDDEN))
+                continue;
+
+            Coords transform = game_translate_into_view(&(entity[i].pos));
+            if ((fabsf(transform.x) < 20.0f) && (transform.y > 0.0f))
+            {
+                // Damage decrease with distance
+                uint8_t damage = MIN(
+                    player_max_damage,
+                    (player_max_damage /
+                     (fabsf(transform.x) * entity[i].distance) / 5.0f));
+
+                entity[i].health = MAX(0, entity[i].health - damage);
+                entity[i].state = S_HIT;
+                entity[i].timer = 2;
+            }
+        }
+    }
+}
+
+/**
+ * @brief GAME get random item drop.
+ *
+ * @return EntityType Random item between ammo, medkit, or nothing
+ */
+EntityType game_get_item_drop(void)
+{
+    EntityType item = 0;
+
+    uint8_t random_item = rand() % 4;
+    if (random_item > 0)
+    {
+        if (random_item < 3)
+            item = E_AMMO;
+        else
+            item = E_MEDKIT;
+    }
+
+    return item;
+}
+
+/**
+ * @brief GAME translate 2D map coordinates into camera coordinates.
+ *
+ * @param pos 2D map coordinates
+ * @return Coords Camera coordinates
+ */
+Coords game_translate_into_view(Coords *pos)
+{
+    // Translate sprite position to relative to camera
+    float sprite_x = pos->x - player.pos.x;
+    float sprite_y = pos->y - player.pos.y;
+
+    // Required for correct matrix multiplication
+    float inv_det = 1.0f / (player.plane.x * player.dir.y -
+                            player.dir.x * player.plane.y);
+    float transform_x = inv_det * (player.dir.y * sprite_x -
+                                   player.dir.x * sprite_y);
+    float transform_y = inv_det * (-player.plane.y * sprite_x +
+                                   player.plane.x * sprite_y);
+
+    return (Coords){transform_x, transform_y};
 }
 
 /**
@@ -835,31 +898,31 @@ void game_render_map(const uint8_t level[], float view_height)
 
         // Wall detection
         uint8_t depth = 0;
-        bool hit = false;
-        bool coll = false;
-        bool side;
-        while ((!hit) && (depth < MAX_RENDER_DEPTH))
+        bool hit_wall = false;
+        bool is_side_wall;
+        bool is_coll = false;
+        while ((!hit_wall) && (depth < MAX_RENDER_DEPTH))
         {
             if (side_x < side_y)
             {
                 side_x += delta_x;
                 map_x += step_x;
-                side = false;
+                is_side_wall = false;
             }
             else
             {
                 side_y += delta_y;
                 map_y += step_y;
-                side = true;
+                is_side_wall = true;
             }
 
             uint8_t block = game_get_level_entity(level, map_x, map_y);
             if ((block == E_WALL) || (block == E_DOOR) || (block == E_DOOR2) ||
                 (block == E_DOOR3) || (block == E_COLL))
             {
-                hit = true;
+                hit_wall = true;
                 if (block == E_COLL)
-                    coll = true;
+                    is_coll = true;
             }
             else
             {
@@ -885,10 +948,10 @@ void game_render_map(const uint8_t level[], float view_height)
             depth++;
         }
 
-        if (hit)
+        if (hit_wall)
         {
             float distance;
-            if (side)
+            if (is_side_wall)
                 distance = MAX(
                     1, (map_y - player.pos.y + (1 - step_y) / 2) / ray_y);
             else
@@ -904,66 +967,13 @@ void game_render_map(const uint8_t level[], float view_height)
             display_draw_vline(
                 x,
                 ((view_height / distance) - (line_height / 2) +
-                 (RENDER_HEIGHT / 2) + (-17 ? coll : 0)),
+                 (RENDER_HEIGHT / 2) + (-17 ? is_coll : 0)),
                 ((view_height / distance) + (line_height / 2) +
                  (RENDER_HEIGHT / 2)),
-                ((GRADIENT_COUNT - (side * 2)) -
+                ((GRADIENT_COUNT - (is_side_wall * 2)) -
                  (distance / MAX_RENDER_DEPTH * GRADIENT_COUNT)));
         }
     }
-}
-
-/**
- * @brief GAME sort entities from far to close.
- *
- */
-void game_sort_entities(void)
-{
-    uint8_t gap = num_entities;
-    bool swapped = false;
-    while ((gap > 1) || (swapped))
-    {
-        // shrink factor 1.3
-        gap = (gap * 10) / 13;
-        if ((gap == 9) || (gap == 10))
-            gap = 11;
-        if (gap < 1)
-            gap = 1;
-
-        swapped = false;
-        for (uint8_t i = 0; i < num_entities - gap; i++)
-        {
-            uint8_t j = i + gap;
-            if (entity[i].distance < entity[j].distance)
-            {
-                SWAP(entity[i], entity[j]);
-                swapped = true;
-            }
-        }
-    }
-}
-
-/**
- * @brief GAME translate 2D map coordinates into camera coordinates.
- *
- * @param pos 2D map coordinates
- * @return Coords Camera coordinates
- */
-Coords game_translate_into_view(Coords *pos)
-{
-    // Translate sprite position to relative to camera
-    float sprite_x = pos->x - player.pos.x;
-    float sprite_y = pos->y - player.pos.y;
-
-    // Required for correct matrix multiplication
-    float inv_det = 1.0f / (player.plane.x * player.dir.y -
-                            player.dir.x * player.plane.y);
-    float transform_x = inv_det * (player.dir.y * sprite_x -
-                                   player.dir.x * sprite_y);
-    float transform_y = inv_det * (-player.plane.y * sprite_x +
-                                   player.plane.x * sprite_y);
-
-    return (Coords){transform_x, transform_y};
 }
 
 /**
@@ -1158,10 +1168,14 @@ void game_render_hud_text(void)
 
     case TEXT_FOUND_SECRET:
         display_draw_text(33, 58, "FOUND SECRET", 1);
+        break;
 
     case TEXT_GOAL_KILLS:
-        sprintf(text, "%d OUT OF %d", game_kill_count, game_kill_goal);
-        display_draw_text(35, 58, text, 1);
+        if (game_kill_count <= game_kill_goal)
+        {
+            sprintf(text, "%d OUT OF %d", game_kill_count, game_kill_goal);
+            display_draw_text(35, 58, text, 1);
+        }
         break;
 
     case TEXT_GOAL_FIND_EXIT:
@@ -1232,15 +1246,16 @@ void game_jump_to_scene(GameScene scene)
     }
 
     // Reset button press time
-    button_press_time = millis();
+    game_button_time = millis();
 
-    // Reset screen fase animation
+    // Reset screen animations
+    screen_flash = false;
     screen_fade = GRADIENT_COUNT - 1;
 }
 
 /**
  * @brief GAME fade display between scene transitions.
- * 
+ *
  * @return Transition animation done
  */
 bool game_scene_transition(void)
@@ -1293,14 +1308,14 @@ void game_run_difficulty_scene(void)
         return;
 
     uint32_t time = millis();
-    if ((time - button_press_time) > BUTTON_PRESS_WAIT)
+    if ((time - game_button_time) > BUTTON_PRESS_WAIT)
     {
         bool up_pressed = input_up();
         bool down_pressed = input_down();
         bool fire_pressed = input_fire();
 
         if (up_pressed || down_pressed || fire_pressed)
-            button_press_time = time;
+            game_button_time = time;
 
         if (down_pressed)
         {
@@ -1345,7 +1360,7 @@ void game_run_difficulty_scene(void)
             case DIFFICULTY_VERY_HARD:
                 medkit_heal_value = MEDKIT_HEAL_VERY_HARD;
                 ammo_pickup_value = AMMO_PICKUP_VERY_HARD;
-                enemy_melee_damage = ENEMY_MELEE_DAMAGE_HARD;
+                enemy_melee_damage = ENEMY_MELEE_DAMAGE_VERY_HARD;
                 player_max_damage = GUN_MAX_DAMAGE_VERY_HARD;
                 break;
 
@@ -1367,14 +1382,14 @@ void game_run_music_scene(void)
     display_draw_text(7, 5, "MUSIC SETTINGS", 1);
     display_draw_text(18, 20, "DISABLE", 1);
     display_draw_text(18, 30, "ENABLE", 1);
-    display_draw_text(7, music_enable * 10 + 20, "#", 1);
+    display_draw_text(7, game_music_enable * 10 + 20, "#", 1);
 
     // Wait for transition animation
     if (!game_scene_transition())
         return;
 
     uint32_t time = millis();
-    if ((time - button_press_time) > BUTTON_PRESS_WAIT)
+    if ((time - game_button_time) > BUTTON_PRESS_WAIT)
     {
         bool up_pressed = input_up();
         bool down_pressed = input_down();
@@ -1382,8 +1397,8 @@ void game_run_music_scene(void)
 
         if (up_pressed || down_pressed)
         {
-            button_press_time = time;
-            music_enable = !music_enable;
+            game_button_time = time;
+            game_music_enable = !game_music_enable;
         }
         else if (fire_pressed)
             game_jump_to_scene(SCENE_STORY_INTRO);
@@ -1434,10 +1449,10 @@ void game_run_story_scene(void)
     if (!game_scene_transition())
         return;
 
-    display_draw_text(39, 53, "PRESS FIRE", 1);
+    display_draw_text(38, 51, "PRESS FIRE", 1);
 
     uint32_t time = millis();
-    if ((time - button_press_time) > BUTTON_PRESS_WAIT)
+    if ((time - game_button_time) > BUTTON_PRESS_WAIT)
     {
         if (input_fire())
         {
@@ -1462,25 +1477,19 @@ void game_run_level_scene(void)
     bool fire_pressed = input_fire();
     bool jump_pressed = input_jump();
 
-    if (player.ammo == 0)
-        coll = false;
-    else
-        coll = true;
-
-    // Check if player found secret room
+    // Check if player found trap room
     if ((player.pos.x >= 2.0f) && (player.pos.x <= 3.0f) &&
         (player.pos.y >= 54.0f) && (player.pos.y <= 55.0f) &&
-        (player.secret < 2.0f))
+        (game_level == level_e1m1))
     {
         game_spawn_entity(E_ENEMY, 1, 51);
         game_spawn_entity(E_ENEMY, 3, 51);
-        player.secret++;
     }
 
     // Check if player found the exit in E1M2
     if ((player.pos.x >= 46.0f) && (player.pos.x <= 47.0f) &&
         (player.pos.y >= 35.0f) && (player.pos.y <= 36.0f) &&
-        (game_level == E1M2))
+        (game_level == level_e1m2))
     {
         player.pos.x = 12.5f;
         player.pos.y = 33.5f;
@@ -1491,36 +1500,28 @@ void game_run_level_scene(void)
         game_spawn_entity(E_ENEMY, 13, 38);
     }
 
+    // Boss fight
+    if ((game_level == level_e1m2) && (game_boss_fight))
+    {
+        if ((game_kill_count == 1) ||
+            (game_kill_count == 5) ||
+            (game_kill_count == 9))
+            game_spawn_entity(E_ENEMY, 13, 38);
+        else if ((game_kill_count == 3) ||
+                 (game_kill_count == 7) ||
+                 (game_kill_count == 11))
+            game_spawn_entity(E_ENEMY, 10, 38);
+        else if (game_kill_count == 13)
+            player.pos.y += 12;
+    }
+
     // Check if player got to the end of E1M2 level
     if ((player.pos.y >= 55.0f) && (player.pos.y <= 56.0f) &&
         (player.pos.x >= 12.0f) && (player.pos.x <= 23.0f) &&
-        (game_level == E1M2))
+        (game_level == level_e1m2))
     {
-        sound_play(mus_s1_snd, MUS_S1_SND_LEN, music_enable);
+        sound_play(mus_s1_snd, MUS_S1_SND_LEN, game_music_enable);
         game_jump_to_scene(SCENE_STORY_END);
-    }
-
-    /** TODO: what is this for? */
-    if ((game_level == E1M2) && (game_boss_fight))
-    {
-        if ((game_kill_count == 1) || (game_kill_count == 5) || (game_kill_count == 9))
-        {
-            game_clear_dead_enemy();
-            game_kill_count++;
-            game_spawn_entity(E_ENEMY, 13, 38);
-        }
-        else if ((game_kill_count == 3) || (game_kill_count == 7) ||
-                 (game_kill_count == 11))
-        {
-            game_clear_dead_enemy();
-            game_kill_count++;
-            game_spawn_entity(E_ENEMY, 10, 38);
-        }
-        else if (game_kill_count == 13)
-        {
-            player.pos.y = player.pos.y + 12;
-            game_kill_count = 0;
-        }
     }
 
     // If the player is alive
@@ -1572,22 +1573,22 @@ void game_run_level_scene(void)
         }
 
         // Player jump
-        if (jump_state)
+        if (player_jump_state)
         {
-            if ((jump_height > 0) && (jump_state == 2))
+            if ((player_jump_height > 0) && (player_jump_state == 2))
             {
                 player_view_height -= 4;
-                jump_height -= 4;
+                player_jump_height -= 4;
             }
-            else if ((jump_height < 20) && (jump_state == 1))
+            else if ((player_jump_height < 20) && (player_jump_state == 1))
             {
                 player_view_height += 4;
-                jump_height += 4;
+                player_jump_height += 4;
             }
-            else if (jump_height == 20)
-                jump_state = 2;
-            else if (jump_height == 0)
-                jump_state = 0;
+            else if (player_jump_height == 20)
+                player_jump_state = 2;
+            else if (player_jump_height == 0)
+                player_jump_state = 0;
         }
         else
         {
@@ -1595,24 +1596,24 @@ void game_run_level_scene(void)
                                  player_jogging;
             if (jump_pressed)
             {
-                jump_state = 1;
+                player_jump_state = 1;
                 player_jogging = 0.0f;
                 gun_position = 22;
-                sound_play(jump_snd, JUMP_SND_LEN, music_enable);
+                sound_play(jump_snd, JUMP_SND_LEN, game_music_enable);
             }
         }
 
         // Player walking sound
-        if ((player_view_height > 2.95f) && (jump_state == 0))
+        if ((player_view_height > 2.95f) && (player_jump_state == 0))
         {
             if (player_walk_sound)
             {
-                sound_play(walk1_snd, WALK1_SND_LEN, music_enable);
+                sound_play(walk1_snd, WALK1_SND_LEN, game_music_enable);
                 player_walk_sound = false;
             }
             else
             {
-                sound_play(walk2_snd, WALK2_SND_LEN, music_enable);
+                sound_play(walk2_snd, WALK2_SND_LEN, game_music_enable);
                 player_walk_sound = true;
             }
         }
@@ -1645,7 +1646,7 @@ void game_run_level_scene(void)
             gun_reload = true;
         }
 
-        if ((game_kill_count == game_kill_goal) && (game_level == E1M1))
+        if ((game_kill_count == game_kill_goal) && (game_level == level_e1m1))
         {
             game_hud_text = TEXT_YOU_WIN;
             if (fire_pressed)
@@ -1653,7 +1654,7 @@ void game_run_level_scene(void)
                 player.pos.x = 230;
                 player.pos.y = 50;
                 game_kill_count = 0;
-                game_level = E1M2;
+                game_level = level_e1m2;
                 game_hud_text = TEXT_BLANK_SPACE;
                 game_jump_to_scene(SCENE_STORY_MID);
             }
@@ -1671,6 +1672,7 @@ void game_run_level_scene(void)
     else
     {
         // The player is dead
+        game_level = level_e1m1;
         game_hud_text = TEXT_GAME_OVER;
 
         if (player_view_height > -5.0f)
@@ -1700,12 +1702,12 @@ void game_run_level_scene(void)
 
         case 3:
             gun_reload_animation = 2;
-            sound_play(r1_snd, R1_SND_LEN, music_enable);
+            sound_play(r1_snd, R1_SND_LEN, game_music_enable);
             break;
 
         case 5:
             gun_reload_animation = 1;
-            sound_play(r2_snd, R2_SND_LEN, music_enable);
+            sound_play(r2_snd, R2_SND_LEN, game_music_enable);
             break;
 
         case 7:
@@ -1754,25 +1756,29 @@ void game_run_score_scene(void)
     game_score = (player.ammo / 2);
     game_score += player.health;
     game_score *= (game_difficulty + 1);
-    if (player.secret > 0)
+    if (player.secret)
         game_score += 100;
-    if (player.secret2 > 0)
+    if (player.secret2)
         game_score += 100;
-    if (player.secret3 > 0)
+    if (player.secret3)
         game_score += 100;
 
-    display_draw_bitmap(8, 8, bmp_logo_bits, BMP_LOGO_WIDTH, BMP_LOGO_HEIGHT,
+    display_draw_bitmap(6, 6, bmp_logo_bits, BMP_LOGO_WIDTH, BMP_LOGO_HEIGHT,
                         COLOR_WHITE);
-    display_draw_text(34, 48, "PICO", 1);
-    display_draw_text(88, 8, "YOU WIN", 1);
-    display_draw_rect(88, 26, 34, 1, COLOR_WHITE);
-    display_draw_text(88, 38, "SCORE:", 1);
-    display_draw_int(88, 48, game_score);
+    display_draw_text(16, 51, "PRESS FIRE", 1);
+    display_draw_text(84, 6, "YOU WIN", 1);
+    display_draw_rect(84, 24, 36, 1, COLOR_WHITE);
+    display_draw_text(84, 36, "SCORE:", 1);
+    display_draw_int(84, 47, game_score);
+
+    // Wait for transition animation
+    if (!game_scene_transition())
+        return;
 
     if (game_score > SCORE_SECRET_ENDING)
-        sound_play(walk1_snd, WALK1_SND_LEN, music_enable);
+        sound_play(walk1_snd, WALK1_SND_LEN, game_music_enable);
     else
-        sound_play(shot_snd, SHOT_SND_LEN, music_enable);
+        sound_play(shot_snd, SHOT_SND_LEN, game_music_enable);
 
     if (input_fire())
         game_jump_to_scene(SCENE_INTRO);
@@ -1800,7 +1806,7 @@ void main(void)
         input_update();
 
         /* Run current game scene */
-        game_run_scene();
+        game_run_score_scene();
 
         /* Stop drawing */
         display_draw_stop();

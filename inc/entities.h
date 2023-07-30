@@ -55,9 +55,9 @@ typedef struct
     float velocity;
     uint8_t health;
     uint8_t ammo;
-    uint8_t secret;
-    uint8_t secret2;
-    uint8_t secret3;
+    bool secret;
+    bool secret2;
+    bool secret3;
 } Player;
 
 typedef struct
@@ -117,9 +117,9 @@ static inline Player entities_create_player(uint8_t x, uint8_t y)
         .velocity = 0.0f,
         .health = 100,
         .ammo = 10,
-        .secret = 0,
-        .secret2 = 0,
-        .secret3 = 0};
+        .secret = false,
+        .secret2 = false,
+        .secret3 = false};
 }
 
 /**

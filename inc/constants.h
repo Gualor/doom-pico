@@ -36,14 +36,9 @@
 #define RENDER_HEIGHT 58
 #define HUD_HEIGHT    6
 
+/* Display colors */
 #define COLOR_BLACK 0
 #define COLOR_WHITE 1
-
-/* Level */
-#define LEVEL_WIDTH_BASE 6
-#define LEVEL_WIDTH      (1 << LEVEL_WIDTH_BASE)
-#define LEVEL_HEIGHT     57
-#define LEVEL_SIZE       ((LEVEL_WIDTH / 2) * LEVEL_HEIGHT)
 
 /* Game */
 #define GUN_TARGET_POS 18
