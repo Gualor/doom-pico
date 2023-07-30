@@ -114,7 +114,6 @@ static bool coll = false;
 static uint8_t jump_state = 0;
 static uint8_t jump_height = 0;
 static uint8_t vel = 1;
-static uint8_t game_difficulty = DIFFICULTY_EASY;
 static uint8_t noclip = 0;
 static bool enable_music = true;
 static uint8_t rc1 = 0;
@@ -135,7 +134,6 @@ static uint8_t enemy_goal = E1M1_ENEMY_GOAL;
 static uint8_t r = 0;
 static bool reload1 = false;
 static int16_t game_score;
-static int8_t story_cutscene = CUTSCENE_E1M1;
 static bool bss = false;
 static bool mc = false;
 // init
@@ -148,6 +146,13 @@ static float jogging;
 static bool flash_screen = false;
 static uint8_t fade_screen = GRADIENT_COUNT - 1;
 
+static uint8_t enemy_melee_damage = ENEMY_MELEE_DAMAGE_LOW;
+static uint8_t enemy_fireball_damage = ENEMY_FIREBALL_DAMAGE_LOW;
+static uint8_t player_max_damage = GUN_MAX_DAMAGE_HIGH;
+static uint8_t medkit_heal_value = MEDKIT_HEAL_HIGH;
+static uint8_t ammo_pickup_value = AMMO_PICKUP_HIGH;
+static GameCutscene game_cutscene = CUTSCENE_E1M1;
+static GameDifficulty game_difficulty = DIFFICULTY_EASY;
 static GameText game_hud_text = TEXT_GOAL_KILLS;
 static const uint8_t *game_level = E1M1;
 static void (*game_run_scene)(void);
@@ -541,34 +546,17 @@ void game_fire_shootgun(void)
             continue;
 
         Coords transform = game_translate_into_view(&(entity[i].pos));
-        if ((fabsf(transform.x) < 20.0f) && (transform.y > 0))
+        if ((fabsf(transform.x) < 20.0f) && (transform.y > 0.0f))
         {
+            // Damage decrease with distance
             uint8_t damage = MIN(
-                GUN_MAX_DAMAGE,
-                (GUN_MAX_DAMAGE /
+                player_max_damage,
+                (player_max_damage /
                  (fabsf(transform.x) * entity[i].distance) / 5.0f));
 
-            if (jump_state)
-                damage /= 3;
-
-            /** TODO: check if difficulty is easy->1, medium->2 etc..*/
-            if (game_difficulty == 1)
-                damage *= 1.5f;
-            else if (game_difficulty == 2)
-                damage = damage;
-            else
-                damage *= 0.7f;
-
-            if (damage > 0)
-            {
-                /** TODO: change this equation so that game difficulty only
-                 * appears in damage calculation
-                 */
-                entity[i].health = MAX(
-                    0, entity[i].health - damage / game_difficulty);
-                entity[i].state = S_HIT;
-                entity[i].timer = 2;
-            }
+            entity[i].health = MAX(0, entity[i].health - damage);
+            entity[i].state = S_HIT;
+            entity[i].timer = 2;
         }
     }
 }
@@ -591,31 +579,17 @@ void game_melee_attack(void)
                 continue;
 
             Coords transform = game_translate_into_view(&(entity[i].pos));
-            if (fabsf(transform.x) < 20 && transform.y > 0)
+            if ((fabsf(transform.x) < 20.0f) && (transform.y > 0.0f))
             {
+                // Damage decrease with distance
                 uint8_t damage = MIN(
-                    GUN_MAX_DAMAGE,
-                    GUN_MAX_DAMAGE /
-                        (fabsf(transform.x) * entity[i].distance) / 5);
+                    player_max_damage,
+                    (player_max_damage /
+                     (fabsf(transform.x) * entity[i].distance) / 5.0f));
 
-                if (jump_state)
-                    damage = damage / 3;
-
-                /** TODO: sort out difficulty damage calculation */
-                if (game_difficulty == 1)
-                    damage = damage + damage / 4.0;
-                else if (game_difficulty == 2)
-                    damage = damage - damage * 0.1;
-                else
-                    damage = damage * 0.60;
-
-                if (damage > 0)
-                {
-                    entity[i].health = MAX(
-                        0, entity[i].health - damage / game_difficulty);
-                    entity[i].state = S_HIT;
-                    entity[i].timer = 2;
-                }
+                entity[i].health = MAX(0, entity[i].health - damage);
+                entity[i].state = S_HIT;
+                entity[i].timer = 2;
             }
         }
     }
@@ -657,7 +631,7 @@ void game_update_entities(const uint8_t level[])
             coords_get_distance(&(player.pos), &(entity[i].pos));
 
         // Run the timer. Works with actual frames.
-        // Todo: use delta_time here. But needs float type and more memory
+        // TODO: use delta_time here. But needs float type and more memory
         if (entity[i].timer > 0)
             entity[i].timer--;
 
@@ -665,7 +639,7 @@ void game_update_entities(const uint8_t level[])
         if (entity[i].distance > MAX_ENTITY_DISTANCE)
         {
             game_remove_entity(entity[i].uid);
-            // don't increase 'i', since current one has been removed
+            // Don't increase 'i', since current one has been removed
             continue;
         }
         // bypass render if hidden
@@ -675,9 +649,7 @@ void game_update_entities(const uint8_t level[])
             continue;
         }
 
-        uint8_t type = entities_get_type(entity[i].uid);
-
-        switch (type)
+        switch (entities_get_type(entity[i].uid))
         {
         /** TODO: move enemy AI to separate function */
         case E_ENEMY:
@@ -752,10 +724,10 @@ void game_update_entities(const uint8_t level[])
                             game_update_position(
                                 level,
                                 &(entity[i].pos),
-                                SIGN(player.pos.x, entity[i].pos.x) *
-                                    ENEMY_SPEED * delta_time,
-                                SIGN(player.pos.y, entity[i].pos.y) *
-                                    ENEMY_SPEED * delta_time,
+                                (SIGN(player.pos.x, entity[i].pos.x) *
+                                 ENEMY_SPEED * delta_time),
+                                (SIGN(player.pos.y, entity[i].pos.y) *
+                                 ENEMY_SPEED * delta_time),
                                 true);
                         }
                     }
@@ -771,8 +743,8 @@ void game_update_entities(const uint8_t level[])
                     else if (entity[i].timer == 0)
                     {
                         // Melee attack
-                        uint8_t damage = ENEMY_MELEE_DAMAGE * game_difficulty;
-                        player.health = MAX(0, player.health - damage);
+                        player.health =
+                            MAX(0, player.health - enemy_melee_damage);
                         entity[i].timer = 14;
                         flash_screen = true;
                     }
@@ -788,8 +760,7 @@ void game_update_entities(const uint8_t level[])
             if (entity[i].distance < FIREBALL_COLLIDER_DIST)
             {
                 // Hit the player and disappear
-                uint8_t damage = ENEMY_MELEE_DAMAGE * game_difficulty;
-                player.health = MAX(0, player.health - damage);
+                player.health = MAX(0, player.health - enemy_fireball_damage);
                 flash_screen = true;
                 game_remove_entity(entity[i].uid);
                 continue;
@@ -801,10 +772,10 @@ void game_update_entities(const uint8_t level[])
                 EntityUID collided = game_update_position(
                     level,
                     &(entity[i].pos),
-                    cosf((float)entity[i].health / FIREBALL_ANGLES * PI) *
-                        FIREBALL_SPEED,
-                    sinf((float)entity[i].health / FIREBALL_ANGLES * PI) *
-                        FIREBALL_SPEED,
+                    (cosf(entity[i].health / FIREBALL_ANGLES * PI) *
+                     FIREBALL_SPEED),
+                    (sinf(entity[i].health / FIREBALL_ANGLES * PI) *
+                     FIREBALL_SPEED),
                     true);
 
                 if (collided)
@@ -826,15 +797,8 @@ void game_update_entities(const uint8_t level[])
                 sound_play(medkit_snd, MEDKIT_SND_LEN);
                 entity[i].state = S_HIDDEN;
 
-                uint16_t health;
-                if (game_difficulty == 1)
-                    health = player.health + MEDKIT_HEAL_HIGH;
-                else if (game_difficulty == 2)
-                    health = player.health + MEDKIT_HEAL_MEDIUM;
-                else
-                    health = player.health + MEDKIT_HEAL_LOW;
-
-                player.health = MIN(PLAYER_MAX_HEALTH, health);
+                player.health =
+                    MIN(PLAYER_MAX_HEALTH, player.health + medkit_heal_value);
                 flash_screen = true;
                 game_hud_text = TEXT_FOUND_MEDKIT;
             }
@@ -850,16 +814,8 @@ void game_update_entities(const uint8_t level[])
                 // Pickup
                 sound_play(get_key_snd, GET_KEY_SND_LEN);
                 entity[i].state = S_HIDDEN;
-
-                uint16_t ammo;
-                if (game_difficulty == 1)
-                    ammo = player.ammo + AMMO_NUM_HIGH;
-                else if (game_difficulty == 2)
-                    ammo = player.ammo + AMMO_NUM_MEDIUM;
-                else
-                    ammo = player.ammo + AMMO_NUM_LOW;
-
-                player.ammo = MIN(PLAYER_MAX_AMMO, ammo);
+                player.ammo =
+                    MIN(PLAYER_MAX_AMMO, player.ammo + ammo_pickup_value);
                 game_hud_text = TEXT_FOUND_AMMO;
             }
             break;
@@ -1230,12 +1186,7 @@ void game_render_hud_text(void)
         break;
 
     case TEXT_FOUND_AMMO:
-        if (game_difficulty == 1)
-            sprintf(text, "FOUND %d AMMO", 13);
-        else if (game_difficulty == 2)
-            sprintf(text, "FOUND %d AMMO", 10);
-        else if (game_difficulty == 3)
-            sprintf(text, "FOUND %d AMMO", 9);
+        sprintf(text, "FOUND %d AMMO", ammo_pickup_value);
         display_draw_text(33, 58, text, TEXT_SPACING);
         break;
 
@@ -1277,7 +1228,7 @@ void game_render_hud_text(void)
  */
 void game_run_story_scene(void)
 {
-    if (story_cutscene == CUTSCENE_E1M1)
+    if (game_cutscene == CUTSCENE_E1M1)
     {
         display_draw_text(0, 0, "YEAR 2027. HUMANS REACHED", TEXT_SPACING);
         display_draw_text(0, 6, "OTHER PLANETS, BUT WE ARE", TEXT_SPACING);
@@ -1288,7 +1239,7 @@ void game_run_story_scene(void)
         display_draw_text(0, 36, "REMNANTS OF EARTH. RESIST", TEXT_SPACING);
         display_draw_text(0, 42, "ALIENS TO ESCAPE.", TEXT_SPACING);
     }
-    else if (story_cutscene == CUTSCENE_E1M2)
+    else if (game_cutscene == CUTSCENE_E1M2)
     {
         display_draw_text(0, 0, "AFTER KILLING BUNCH OF ", TEXT_SPACING);
         display_draw_text(0, 6, "ALIENS, LIGHTS TURNED OFF", TEXT_SPACING);
@@ -1299,7 +1250,7 @@ void game_run_story_scene(void)
         display_draw_text(0, 36, "BUT TO START LOOKING FOR ", TEXT_SPACING);
         display_draw_text(0, 42, "EXIT, WHILE FIGHT ALIENS.", TEXT_SPACING);
     }
-    else if (story_cutscene == CUTSCENE_END)
+    else if (game_cutscene == CUTSCENE_END)
     {
         display_draw_text(0, 0, "AFTER HARD FIGHT YOU WENT", TEXT_SPACING);
         display_draw_text(0, 6, "TO EXIT. AND AS SOON AS", TEXT_SPACING);
@@ -1314,7 +1265,7 @@ void game_run_story_scene(void)
 
     if (input_fire())
     {
-        if (story_cutscene != CUTSCENE_END)
+        if (game_cutscene != CUTSCENE_END)
             game_jump_to_scene(SCENE_LEVEL);
         else
             game_jump_to_scene(SCENE_SCORE);
@@ -1411,7 +1362,41 @@ void game_run_difficulty_scene(void)
             game_difficulty--;
     }
     else if (input_fire())
+    {
+        // Adjust game settings based on difficulty
+        switch (game_difficulty)
+        {
+        case DIFFICULTY_EASY:
+            medkit_heal_value = MEDKIT_HEAL_HIGH;
+            ammo_pickup_value = AMMO_PICKUP_HIGH;
+            enemy_melee_damage = ENEMY_MELEE_DAMAGE_LOW;
+            player_max_damage = GUN_MAX_DAMAGE_HIGH;
+            break;
+
+        case DIFFICULTY_NORMAL:
+            medkit_heal_value = MEDKIT_HEAL_MED;
+            ammo_pickup_value = AMMO_PICKUP_MED;
+            enemy_melee_damage = ENEMY_MELEE_DAMAGE_MED;
+            player_max_damage = GUN_MAX_DAMAGE_MED;
+            break;
+
+        case DIFFICULTY_HARD:
+            medkit_heal_value = MEDKIT_HEAL_LOW;
+            ammo_pickup_value = AMMO_PICKUP_LOW;
+            enemy_melee_damage = ENEMY_MELEE_DAMAGE_HIGH;
+            player_max_damage = GUN_MAX_DAMAGE_LOW;
+            break;
+
+        /** TODO: increase difficulty for very hard mode */
+        case DIFFICULTY_VERY_HARD:
+            medkit_heal_value = MEDKIT_HEAL_LOW;
+            ammo_pickup_value = AMMO_PICKUP_LOW;
+            enemy_melee_damage = ENEMY_MELEE_DAMAGE_HIGH;
+            player_max_damage = GUN_MAX_DAMAGE_LOW;
+            break;
+        }
         game_jump_to_scene(SCENE_MUSIC);
+    }
 
     delay(100);
 }
@@ -1482,7 +1467,7 @@ void game_run_level_scene(void)
         (player.pos.x >= 12.0f) && (player.pos.x <= 23.0f) &&
         (game_level == E1M2))
     {
-        story_cutscene = CUTSCENE_END;
+        game_cutscene = CUTSCENE_END;
         enable_music = false;
         sound_play(mus_s1_snd, MUS_S1_SND_LEN);
         game_jump_to_scene(SCENE_STORY);
@@ -1643,7 +1628,7 @@ void game_run_level_scene(void)
                 player.pos.x = 230;
                 player.pos.y = 50;
                 enemy_count = 0;
-                story_cutscene = CUTSCENE_E1M2;
+                game_cutscene = CUTSCENE_E1M2;
                 game_level = E1M2;
             }
         }
