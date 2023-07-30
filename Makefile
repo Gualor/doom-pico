@@ -9,8 +9,8 @@ INC_DIR := inc
 BIN_DIR := bin
 RAYLIB_DIR := raylib
 
-SRCS := $(shell find $(SRC_DIR) -name "*.c" -or -name "*.s")
-OBJS := $(SRCS:%=$(BIN_DIR)/%.o)
+SRCS := $(shell find $(SRC_DIR) -name "*.c")
+OBJS := $(patsubst $(SRC_DIR)/%,$(BIN_DIR)/%.o,$(SRCS))
 DEPS := $(OBJS:.o=.d)
 
 CFLAGS := -I$(INC_DIR) -MMD -MP -g
@@ -28,10 +28,10 @@ ifeq ($(USE_RAYLIB), 1)
     endif
 endif
 
-$(BIN_DIR)/$(TARGET_EXEC): $(OBJS)
+$(TARGET_EXEC): $(OBJS)
 	$(CC) $(OBJS) -o $@ $(LDFLAGS)
 
-$(BIN_DIR)/%.c.o: %.c
+$(BIN_DIR)/%.c.o: $(SRC_DIR)/%.c
 	$(MKDIR) $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
@@ -41,7 +41,7 @@ $(RAYLIB_DIR):
 .PHONY: run
 run: $(RAYLIB_DIR)
 	$(MAKE) USE_RAYLIB=1
-	./$(BIN_DIR)/$(TARGET_EXEC)
+	./$(TARGET_EXEC)
 
 .PHONY: clean
 clean:
