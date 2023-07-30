@@ -40,7 +40,6 @@ $(RAYLIB_DIR):
 
 .PHONY: run
 run: $(RAYLIB_DIR)
-	$(MAKE) clean
 	$(MAKE) USE_RAYLIB=1
 	./$(BIN_DIR)/$(TARGET_EXEC)
 
