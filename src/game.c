@@ -127,7 +127,7 @@ static uint8_t num_static_entities = 0;
 
 static uint8_t del = 0;
 static uint8_t enemy_count = 0;
-static uint8_t enemy_goal = ENEMY_GOAL1;
+static uint8_t enemy_goal = ENEMY_KILL_GOAL1;
 static int16_t game_score;
 static bool game_boss_fight = false;
 // init
@@ -145,11 +145,11 @@ static bool screen_flash = false;
 static uint8_t screen_fade = GRADIENT_COUNT - 1;
 static uint32_t button_press_time = 0;
 
-static uint8_t enemy_melee_damage = ENEMY_MELEE_DAMAGE_LOW;
-static uint8_t enemy_fireball_damage = ENEMY_FIREBALL_DAMAGE_LOW;
-static uint8_t player_max_damage = GUN_MAX_DAMAGE_HIGH;
-static uint8_t medkit_heal_value = MEDKIT_HEAL_HIGH;
-static uint8_t ammo_pickup_value = AMMO_PICKUP_HIGH;
+static uint8_t enemy_melee_damage = ENEMY_MELEE_DAMAGE_EASY;
+static uint8_t enemy_fireball_damage = ENEMY_FIREBALL_DAMAGE_EASY;
+static uint8_t player_max_damage = GUN_MAX_DAMAGE_EASY;
+static uint8_t medkit_heal_value = MEDKIT_HEAL_EASY;
+static uint8_t ammo_pickup_value = AMMO_PICKUP_EASY;
 static GameCutscene game_cutscene = CUTSCENE_INTRO;
 static GameDifficulty game_difficulty = DIFFICULTY_EASY;
 static GameText game_hud_text = TEXT_GOAL_KILLS;
@@ -469,26 +469,26 @@ EntityUID game_detect_collision(const uint8_t level[], Coords *pos,
 
     if (block == E_WALL)
     {
-        sound_play(hit_wall_snd, HIT_WALL_SND_LEN);
+        sound_play(hit_wall_snd, HIT_WALL_SND_LEN, music_enable);
         return entities_get_uid(block, round_x, round_y);
     }
     else if ((block == E_DOOR) && (player.secret == false))
     {
         player.secret = true;
         game_hud_text = TEXT_FOUND_SECRET;
-        sound_play(s_snd, S_SND_LEN);
+        sound_play(s_snd, S_SND_LEN, music_enable);
     }
     else if ((block == E_DOOR2) && (player.secret2 == false))
     {
         player.secret2 = true;
         game_hud_text = TEXT_FOUND_SECRET;
-        sound_play(s_snd, S_SND_LEN);
+        sound_play(s_snd, S_SND_LEN, music_enable);
     }
     else if ((block == E_DOOR3) && (player.secret3 == false))
     {
         player.secret3 = true;
         game_hud_text = TEXT_FOUND_SECRET;
-        sound_play(s_snd, S_SND_LEN);
+        sound_play(s_snd, S_SND_LEN, music_enable);
     }
 
     if (only_walls)
@@ -553,7 +553,7 @@ EntityUID game_update_position(const uint8_t level[], Coords *pos, float rel_x,
  */
 void game_fire_shootgun(void)
 {
-    sound_play(shoot_snd, SHOOT_SND_LEN);
+    sound_play(shoot_snd, SHOOT_SND_LEN, music_enable);
     for (uint8_t i = 0; i < num_entities; i++)
     {
         // Shoot only ALIVE enemies
@@ -584,7 +584,7 @@ void game_fire_shootgun(void)
  */
 void game_melee_attack(void)
 {
-    sound_play(melee_snd, MELEE_SND_LEN);
+    sound_play(melee_snd, MELEE_SND_LEN, music_enable);
     for (uint8_t i = 0; i < num_entities; i++)
     {
         if (entity[i].distance <= ENEMY_MELEE_DIST)
@@ -681,13 +681,12 @@ void game_update_entities(const uint8_t level[])
                     entity[i].timer = 6;
                 }
 
-                /** TODO: what is .a property? */
-                if (entity[i].a == false)
+                if (entity[i].drop_item == true)
                 {
                     EntityType item = game_get_item_drop();
                     game_spawn_entity(item, entity[i].pos.x, entity[i].pos.y);
 
-                    entity[i].a = true;
+                    entity[i].drop_item = false;
                     enemy_count++;
                 }
             }
@@ -803,7 +802,7 @@ void game_update_entities(const uint8_t level[])
                 (jump_height < 14))
             {
                 // Pickup
-                sound_play(medkit_snd, MEDKIT_SND_LEN);
+                sound_play(medkit_snd, MEDKIT_SND_LEN, music_enable);
                 entity[i].state = S_HIDDEN;
 
                 player.health = MIN(
@@ -821,7 +820,7 @@ void game_update_entities(const uint8_t level[])
                 (jump_height < 14))
             {
                 // Pickup
-                sound_play(get_key_snd, GET_KEY_SND_LEN);
+                sound_play(get_key_snd, GET_KEY_SND_LEN, music_enable);
                 entity[i].state = S_HIDDEN;
                 player.ammo = MIN(
                     PLAYER_MAX_AMMO, player.ammo + ammo_pickup_value);
@@ -1235,8 +1234,6 @@ void game_render_hud_text(void)
  */
 void game_run_intro_scene(void)
 {
-    sound_play(mus_s1_snd, MUS_S1_SND_LEN);
-
     display_draw_bitmap(28, 6, bmp_logo_bits, BMP_LOGO_WIDTH, BMP_LOGO_HEIGHT,
                         COLOR_WHITE);
     display_draw_text(38, 51, "PRESS FIRE", 1);
@@ -1289,34 +1286,34 @@ void game_run_difficulty_scene(void)
             switch (game_difficulty)
             {
             case DIFFICULTY_EASY:
-                medkit_heal_value = MEDKIT_HEAL_HIGH;
-                ammo_pickup_value = AMMO_PICKUP_HIGH;
-                enemy_melee_damage = ENEMY_MELEE_DAMAGE_LOW;
-                player_max_damage = GUN_MAX_DAMAGE_HIGH;
+                medkit_heal_value = MEDKIT_HEAL_EASY;
+                ammo_pickup_value = AMMO_PICKUP_EASY;
+                enemy_melee_damage = ENEMY_MELEE_DAMAGE_EASY;
+                player_max_damage = GUN_MAX_DAMAGE_EASY;
                 break;
 
             case DIFFICULTY_NORMAL:
-                medkit_heal_value = MEDKIT_HEAL_MED;
-                ammo_pickup_value = AMMO_PICKUP_MED;
-                enemy_melee_damage = ENEMY_MELEE_DAMAGE_MED;
-                player_max_damage = GUN_MAX_DAMAGE_MED;
+                medkit_heal_value = MEDKIT_HEAL_NORMAL;
+                ammo_pickup_value = AMMO_PICKUP_NORMAL;
+                enemy_melee_damage = ENEMY_MELEE_DAMAGE_NORMAL;
+                player_max_damage = GUN_MAX_DAMAGE_NORMAL;
                 break;
 
             case DIFFICULTY_HARD:
-                medkit_heal_value = MEDKIT_HEAL_LOW;
-                ammo_pickup_value = AMMO_PICKUP_LOW;
-                enemy_melee_damage = ENEMY_MELEE_DAMAGE_HIGH;
-                player_max_damage = GUN_MAX_DAMAGE_LOW;
+                medkit_heal_value = MEDKIT_HEAL_HARD;
+                ammo_pickup_value = AMMO_PICKUP_HARD;
+                enemy_melee_damage = ENEMY_MELEE_DAMAGE_HARD;
+                player_max_damage = GUN_MAX_DAMAGE_HARD;
                 break;
 
-            /** TODO: increase difficulty for very hard mode */
             case DIFFICULTY_VERY_HARD:
-                medkit_heal_value = MEDKIT_HEAL_LOW;
-                ammo_pickup_value = AMMO_PICKUP_LOW;
-                enemy_melee_damage = ENEMY_MELEE_DAMAGE_HIGH;
-                player_max_damage = GUN_MAX_DAMAGE_LOW;
+                medkit_heal_value = MEDKIT_HEAL_VERY_HARD;
+                ammo_pickup_value = AMMO_PICKUP_VERY_HARD;
+                enemy_melee_damage = ENEMY_MELEE_DAMAGE_HARD;
+                player_max_damage = GUN_MAX_DAMAGE_VERY_HARD;
                 break;
             }
+
             game_jump_to_scene(SCENE_MUSIC);
         }
     }
@@ -1417,8 +1414,6 @@ void game_run_level_scene(void)
     bool fire_pressed = input_fire();
     bool jump_pressed = input_jump();
 
-    display_get_fps();
-
     if (player.ammo == 0)
         coll = false;
     else
@@ -1439,10 +1434,10 @@ void game_run_level_scene(void)
         (player.pos.y >= 35.0f) && (player.pos.y <= 36.0f) &&
         (game_level == E1M2))
     {
-        player.pos.x = 12.5;
-        player.pos.y = 33.5;
+        player.pos.x = 12.5f;
+        player.pos.y = 33.5f;
         enemy_count = 0;
-        enemy_goal = ENEMY_GOAL2;
+        enemy_goal = ENEMY_KILL_GOAL2;
         game_boss_fight = true;
         game_spawn_entity(E_ENEMY, 10, 38);
         game_spawn_entity(E_ENEMY, 13, 38);
@@ -1453,7 +1448,7 @@ void game_run_level_scene(void)
         (player.pos.x >= 12.0f) && (player.pos.x <= 23.0f) &&
         (game_level == E1M2))
     {
-        sound_play(mus_s1_snd, MUS_S1_SND_LEN);
+        sound_play(mus_s1_snd, MUS_S1_SND_LEN, music_enable);
         game_jump_to_scene(SCENE_STORY_END);
     }
 
@@ -1483,17 +1478,19 @@ void game_run_level_scene(void)
     // If the player is alive
     if (player.health > 0)
     {
-        // Player speed
+        // Player movement speed
         if (up_pressed || down_pressed)
         {
             if (up_pressed)
                 player.velocity += (MOV_SPEED - player.velocity) * 0.4f;
             else
                 player.velocity += (-MOV_SPEED - player.velocity) * 0.4f;
-            player_jogging = fabsf(player.velocity) * GUN_SPEED * 2.0f;
         }
         else
             player.velocity *= 0.5f;
+
+        // Player jogging speed animation
+        player_jogging = fabsf(player.velocity) * GUN_SPEED * 2.0f;
 
         // Player rotation
         if (left_pressed || right_pressed)
@@ -1548,13 +1545,12 @@ void game_run_level_scene(void)
         {
             player_view_height = fabsf(sinf(millis() * JOGGING_SPEED)) * 6 *
                                  player_jogging;
-
             if (jump_pressed)
             {
                 jump_state = 1;
                 player_jogging = 0.0f;
                 gun_position = 22;
-                sound_play(jump_snd, JUMP_SND_LEN);
+                sound_play(jump_snd, JUMP_SND_LEN, music_enable);
             }
         }
 
@@ -1563,23 +1559,22 @@ void game_run_level_scene(void)
         {
             if (player_walk_sound)
             {
-                sound_play(walk1_snd, WALK1_SND_LEN);
+                sound_play(walk1_snd, WALK1_SND_LEN, music_enable);
                 player_walk_sound = false;
             }
             else
             {
-                sound_play(walk2_snd, WALK2_SND_LEN);
+                sound_play(walk2_snd, WALK2_SND_LEN, music_enable);
                 player_walk_sound = true;
             }
         }
 
         // Update gun
-        bool press_fire = input_fire();
         if (gun_position > GUN_TARGET_POS)
             gun_position -= 2; // Right after fire
         else if (gun_position < GUN_TARGET_POS)
             gun_position += 2; // Showing up
-        else if (press_fire && !gun_fired && !gun_reload)
+        else if (fire_pressed && !gun_fired && !gun_reload)
         {
             // Ready to fire and fire pressed
             gun_position = GUN_SHOT_POS;
@@ -1595,7 +1590,7 @@ void game_run_level_scene(void)
             // Clear last HUD text after shooting / melee attack
             game_hud_text = TEXT_BLANK_SPACE;
         }
-        else if (!press_fire && gun_fired)
+        else if (!fire_pressed && gun_fired)
         {
             // Just fired and restored position
             gun_fired = false;
@@ -1605,7 +1600,7 @@ void game_run_level_scene(void)
         if ((enemy_count == enemy_goal) && (game_level == E1M1))
         {
             game_hud_text = TEXT_YOU_WIN;
-            if (press_fire)
+            if (fire_pressed)
             {
                 player.pos.x = 230;
                 player.pos.y = 50;
@@ -1657,12 +1652,12 @@ void game_run_level_scene(void)
 
         case 3:
             gun_reload_animation = 2;
-            sound_play(r1_snd, R1_SND_LEN);
+            sound_play(r1_snd, R1_SND_LEN, music_enable);
             break;
 
         case 5:
             gun_reload_animation = 1;
-            sound_play(r2_snd, R2_SND_LEN);
+            sound_play(r2_snd, R2_SND_LEN, music_enable);
             break;
 
         case 7:
@@ -1730,9 +1725,9 @@ void game_run_score_scene(void)
     display_draw_int(88, 48, game_score);
 
     if (game_score > SCORE_SECRET_ENDING)
-        sound_play(walk1_snd, WALK1_SND_LEN);
+        sound_play(walk1_snd, WALK1_SND_LEN, music_enable);
     else
-        sound_play(shot_snd, SHOT_SND_LEN);
+        sound_play(shot_snd, SHOT_SND_LEN, music_enable);
 
     if (input_fire())
         game_jump_to_scene(SCENE_INTRO);

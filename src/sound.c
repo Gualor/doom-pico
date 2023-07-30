@@ -28,11 +28,15 @@ void sound_init(void)
 /**
  * @brief SOUND update sound and execute platform audio player.
  *
- * @param snd Sound byte array
- * @param len Byte length of sound
+ * @param snd    Sound byte array
+ * @param len    Byte length of sound
+ * @param enable Enable speakers
  */
-void sound_play(const uint8_t *snd, uint8_t len)
+void sound_play(const uint8_t *snd, uint8_t len, bool enable)
 {
+    if (!enable)
+        return;
+
     // Assign new sound effect
     sound_ptr = (uint8_t *)snd;
     sound_len = len;
@@ -42,7 +46,7 @@ void sound_play(const uint8_t *snd, uint8_t len)
     sound_t0 = platform_millis();
 
     // Execute platform audio player
-    // platform_audio_play();
+    platform_audio_play();
 }
 
 /**

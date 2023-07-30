@@ -69,8 +69,7 @@ typedef struct
     uint8_t health;
     uint8_t distance;
     uint8_t timer;
-    bool a;
-    bool b;
+    bool drop_item;
 } Entity;
 
 typedef struct
@@ -141,8 +140,7 @@ static inline Entity entities_create_enemy(uint8_t x, uint8_t y)
         .health = 100,
         .distance = 0,
         .timer = 0,
-        .a = false,
-        .b = false};
+        .drop_item = true};
 }
 
 /**
@@ -161,8 +159,7 @@ static inline Entity entities_create_medkit(uint8_t x, uint8_t y)
         .health = 100,
         .distance = 0,
         .timer = 0,
-        .a = false,
-        .b = false};
+        .drop_item = true};
 }
 
 /**
@@ -181,8 +178,7 @@ static inline Entity entities_create_key(uint8_t x, uint8_t y)
         .health = 100,
         .distance = 0,
         .timer = 0,
-        .a = false,
-        .b = false};
+        .drop_item = true};
 }
 
 /**
@@ -202,8 +198,7 @@ static inline Entity entities_create_fireball(uint8_t x, uint8_t y, uint8_t dir)
         .health = dir,
         .distance = 0,
         .timer = 0,
-        .a = false,
-        .b = false};
+        .drop_item = true};
 }
 
 #endif /* ENTITIES_H */

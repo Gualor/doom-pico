@@ -190,10 +190,11 @@ void sound_init(void);
 /**
  * @brief SOUND update sound and execute platform audio player.
  *
- * @param snd Sound byte array
- * @param len Byte length of sound
+ * @param snd    Sound byte array
+ * @param len    Byte length of sound
+ * @param enable Enable speakers
  */
-void sound_play(const uint8_t *snd, uint8_t len);
+void sound_play(const uint8_t *snd, uint8_t len, bool enable);
 
 /**
  * @brief SOUND get a new frequency from current sound every (1/140)s period,
