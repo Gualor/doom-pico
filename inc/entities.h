@@ -58,7 +58,6 @@ typedef struct
     uint8_t secret;
     uint8_t secret2;
     uint8_t secret3;
-    int16_t score;
 } Player;
 
 typedef struct
@@ -120,8 +119,7 @@ static inline Player entities_create_player(uint8_t x, uint8_t y)
         .ammo = 10,
         .secret = 0,
         .secret2 = 0,
-        .secret3 = 0,
-        .score = 0};
+        .secret3 = 0};
 }
 
 /**

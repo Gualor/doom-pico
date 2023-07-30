@@ -102,6 +102,7 @@ static void game_render_hud_text(void);
 
 /* Scenes */
 static void game_jump_to_scene(GameScene scene);
+static bool game_scene_transition(void);
 static void game_run_intro_scene(void);
 static void game_run_difficulty_scene(void);
 static void game_run_music_scene(void);
@@ -126,8 +127,8 @@ static StaticEntity static_entity[MAX_STATIC_ENTITIES];
 static uint8_t num_static_entities = 0;
 
 static uint8_t del = 0;
-static uint8_t enemy_count = 0;
-static uint8_t enemy_goal = ENEMY_KILL_GOAL1;
+static uint8_t game_kill_count = 0;
+static uint8_t game_kill_goal = ENEMY_KILL_GOAL1;
 static int16_t game_score;
 static bool game_boss_fight = false;
 // init
@@ -159,60 +160,6 @@ static void (*game_run_scene)(void);
 /* Function definitions ----------------------------------------------------- */
 
 /**
- * @brief GAME jump to another scene at the end of the current frame.
- *
- * @param scene Game scene
- */
-void game_jump_to_scene(GameScene scene)
-{
-    switch (scene)
-    {
-    case SCENE_INTRO:
-        game_run_scene = game_run_intro_scene;
-        break;
-
-    case SCENE_DIFFICULTY:
-        game_run_scene = game_run_difficulty_scene;
-        break;
-
-    case SCENE_MUSIC:
-        game_run_scene = game_run_music_scene;
-        break;
-
-    case SCENE_STORY_INTRO:
-        game_cutscene = CUTSCENE_INTRO;
-        game_run_scene = game_run_story_scene;
-        break;
-
-    case SCENE_STORY_MID:
-        game_cutscene = CUTSCENE_MID;
-        game_run_scene = game_run_story_scene;
-        break;
-
-    case SCENE_STORY_END:
-        game_cutscene = CUTSCENE_END;
-        game_run_scene = game_run_story_scene;
-        break;
-
-    case SCENE_LEVEL:
-        game_init_level_scene(game_level);
-        game_run_scene = game_run_level_scene;
-        break;
-
-    case SCENE_SCORE:
-        game_run_scene = game_run_score_scene;
-        break;
-
-    default:
-        game_run_scene = game_run_intro_scene;
-        break;
-    }
-
-    // Reset button press time
-    button_press_time = millis();
-}
-
-/**
  * @brief GAME initialize level state.
  *
  * @param level Level byte map
@@ -230,8 +177,6 @@ void game_init_level_scene(const uint8_t level[])
     player_view_height = 0.0f;
     player_jogging = 0.0f;
 
-    screen_fade = GRADIENT_COUNT - 1;
-
     // Initialize game entities
     memset(entity, 0x00, sizeof(Entity) * MAX_ENTITIES);
     memset(static_entity, 0x00, sizeof(StaticEntity) * MAX_STATIC_ENTITIES);
@@ -240,7 +185,6 @@ void game_init_level_scene(const uint8_t level[])
 
     // Initialize screen effects
     screen_flash = false;
-    screen_fade = GRADIENT_COUNT - 1;
 
     // Initialize audio effects
     player_walk_sound = false;
@@ -347,6 +291,9 @@ void game_spawn_entity(EntityType type, uint8_t x, uint8_t y)
     case E_MEDKIT:
         entity[num_entities] = entities_create_medkit(x, y);
         num_entities++;
+        break;
+
+    default:
         break;
     }
 }
@@ -687,7 +634,7 @@ void game_update_entities(const uint8_t level[])
                     game_spawn_entity(item, entity[i].pos.x, entity[i].pos.y);
 
                     entity[i].drop_item = false;
-                    enemy_count++;
+                    game_kill_count++;
                 }
             }
             else if (entity[i].state == S_HIT)
@@ -828,6 +775,9 @@ void game_update_entities(const uint8_t level[])
             }
             break;
         }
+
+        default:
+            break;
         }
 
         i++;
@@ -1118,6 +1068,9 @@ void game_render_entities(float view_height)
                 transform.y);
             break;
         }
+
+        default:
+            break;
         }
     }
 }
@@ -1207,7 +1160,7 @@ void game_render_hud_text(void)
         display_draw_text(33, 58, "FOUND SECRET", 1);
 
     case TEXT_GOAL_KILLS:
-        sprintf(text, "%d OUT OF %d", enemy_count, enemy_goal);
+        sprintf(text, "%d OUT OF %d", game_kill_count, game_kill_goal);
         display_draw_text(35, 58, text, 1);
         break;
 
@@ -1229,6 +1182,80 @@ void game_render_hud_text(void)
 }
 
 /**
+ * @brief GAME jump to another scene at the end of the current frame.
+ *
+ * @param scene Game scene
+ */
+void game_jump_to_scene(GameScene scene)
+{
+    switch (scene)
+    {
+    case SCENE_INTRO:
+        game_run_scene = game_run_intro_scene;
+        break;
+
+    case SCENE_DIFFICULTY:
+        game_run_scene = game_run_difficulty_scene;
+        break;
+
+    case SCENE_MUSIC:
+        game_run_scene = game_run_music_scene;
+        break;
+
+    case SCENE_STORY_INTRO:
+        game_cutscene = CUTSCENE_INTRO;
+        game_run_scene = game_run_story_scene;
+        break;
+
+    case SCENE_STORY_MID:
+        game_cutscene = CUTSCENE_MID;
+        game_run_scene = game_run_story_scene;
+        break;
+
+    case SCENE_STORY_END:
+        game_cutscene = CUTSCENE_END;
+        game_run_scene = game_run_story_scene;
+        break;
+
+    case SCENE_LEVEL:
+        game_init_level_scene(game_level);
+        game_run_scene = game_run_level_scene;
+        break;
+
+    case SCENE_SCORE:
+        game_run_scene = game_run_score_scene;
+        break;
+
+    default:
+        game_run_scene = game_run_intro_scene;
+        break;
+    }
+
+    // Reset button press time
+    button_press_time = millis();
+
+    // Reset screen fase animation
+    screen_fade = GRADIENT_COUNT - 1;
+}
+
+/**
+ * @brief GAME fade display between scene transitions.
+ * 
+ * @return Transition animation done
+ */
+bool game_scene_transition(void)
+{
+    if (screen_fade > 0)
+    {
+        display_fade(screen_fade, COLOR_BLACK);
+        screen_fade--;
+        return false;
+    }
+
+    return true;
+}
+
+/**
  * @brief GAME run intro scene.
  *
  */
@@ -1236,6 +1263,11 @@ void game_run_intro_scene(void)
 {
     display_draw_bitmap(28, 6, bmp_logo_bits, BMP_LOGO_WIDTH, BMP_LOGO_HEIGHT,
                         COLOR_WHITE);
+
+    // Wait for transition animation
+    if (!game_scene_transition())
+        return;
+
     display_draw_text(38, 51, "PRESS FIRE", 1);
 
     if (input_fire())
@@ -1255,6 +1287,10 @@ void game_run_difficulty_scene(void)
     display_draw_text(18, 40, "ULTRA VIOLENCE", 1);
     display_draw_text(18, 50, "NIGHTMARE", 1);
     display_draw_text(7, game_difficulty * 10 + 20, "#", 1);
+
+    // Wait for transition animation
+    if (!game_scene_transition())
+        return;
 
     uint32_t time = millis();
     if ((time - button_press_time) > BUTTON_PRESS_WAIT)
@@ -1312,6 +1348,9 @@ void game_run_difficulty_scene(void)
                 enemy_melee_damage = ENEMY_MELEE_DAMAGE_HARD;
                 player_max_damage = GUN_MAX_DAMAGE_VERY_HARD;
                 break;
+
+            default:
+                break;
             }
 
             game_jump_to_scene(SCENE_MUSIC);
@@ -1329,6 +1368,10 @@ void game_run_music_scene(void)
     display_draw_text(18, 20, "DISABLE", 1);
     display_draw_text(18, 30, "ENABLE", 1);
     display_draw_text(7, music_enable * 10 + 20, "#", 1);
+
+    // Wait for transition animation
+    if (!game_scene_transition())
+        return;
 
     uint32_t time = millis();
     if ((time - button_press_time) > BUTTON_PRESS_WAIT)
@@ -1386,6 +1429,11 @@ void game_run_story_scene(void)
         display_draw_text(0, 36, "CAN NOT END LIKE THIS...", 1);
         display_draw_text(0, 42, "THE END (MAYBE...)", 1);
     }
+
+    // Wait for transition animation
+    if (!game_scene_transition())
+        return;
+
     display_draw_text(39, 53, "PRESS FIRE", 1);
 
     uint32_t time = millis();
@@ -1436,8 +1484,8 @@ void game_run_level_scene(void)
     {
         player.pos.x = 12.5f;
         player.pos.y = 33.5f;
-        enemy_count = 0;
-        enemy_goal = ENEMY_KILL_GOAL2;
+        game_kill_count = 0;
+        game_kill_goal = ENEMY_KILL_GOAL2;
         game_boss_fight = true;
         game_spawn_entity(E_ENEMY, 10, 38);
         game_spawn_entity(E_ENEMY, 13, 38);
@@ -1455,23 +1503,23 @@ void game_run_level_scene(void)
     /** TODO: what is this for? */
     if ((game_level == E1M2) && (game_boss_fight))
     {
-        if ((enemy_count == 1) || (enemy_count == 5) || (enemy_count == 9))
+        if ((game_kill_count == 1) || (game_kill_count == 5) || (game_kill_count == 9))
         {
             game_clear_dead_enemy();
-            enemy_count++;
+            game_kill_count++;
             game_spawn_entity(E_ENEMY, 13, 38);
         }
-        else if ((enemy_count == 3) || (enemy_count == 7) ||
-                 (enemy_count == 11))
+        else if ((game_kill_count == 3) || (game_kill_count == 7) ||
+                 (game_kill_count == 11))
         {
             game_clear_dead_enemy();
-            enemy_count++;
+            game_kill_count++;
             game_spawn_entity(E_ENEMY, 10, 38);
         }
-        else if (enemy_count == 13)
+        else if (game_kill_count == 13)
         {
             player.pos.y = player.pos.y + 12;
-            enemy_count = 0;
+            game_kill_count = 0;
         }
     }
 
@@ -1597,14 +1645,14 @@ void game_run_level_scene(void)
             gun_reload = true;
         }
 
-        if ((enemy_count == enemy_goal) && (game_level == E1M1))
+        if ((game_kill_count == game_kill_goal) && (game_level == E1M1))
         {
             game_hud_text = TEXT_YOU_WIN;
             if (fire_pressed)
             {
                 player.pos.x = 230;
                 player.pos.y = 50;
-                enemy_count = 0;
+                game_kill_count = 0;
                 game_level = E1M2;
                 game_hud_text = TEXT_BLANK_SPACE;
                 game_jump_to_scene(SCENE_STORY_MID);
@@ -1677,13 +1725,10 @@ void game_run_level_scene(void)
     game_render_gun(gun_position, player_jogging, gun_fired,
                     gun_reload_animation);
 
-    // Fade in effect
-    if (screen_fade > 0)
-    {
-        display_fade(screen_fade, COLOR_BLACK);
-        screen_fade--;
+    // Wait for transition animation
+    if (!game_scene_transition())
         return;
-    }
+
     game_render_hud();
     game_render_hud_text();
 
@@ -1733,6 +1778,10 @@ void game_run_score_scene(void)
         game_jump_to_scene(SCENE_INTRO);
 }
 
+/**
+ * @brief GAME main function.
+ *
+ */
 void main(void)
 {
     /* Initialize game */
@@ -1741,8 +1790,6 @@ void main(void)
     sound_init();
     input_init();
     game_run_scene = game_run_intro_scene;
-
-    /** TODO: fix bug with running animation */
 
     while (!input_exit())
     {
@@ -1755,16 +1802,9 @@ void main(void)
         /* Run current game scene */
         game_run_scene();
 
-        printf("vel: %f\thp: %d\tammo: %d\ts: %d\ts1: %d\ts2: %d\tscore: %d\n",
-               player.velocity,
-               player.health,
-               player.ammo,
-               player.secret,
-               player.secret2,
-               player.secret3,
-               player.score);
-
         /* Stop drawing */
         display_draw_stop();
     }
 }
+
+/* -------------------------------------------------------------------------- */
