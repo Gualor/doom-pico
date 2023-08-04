@@ -258,7 +258,7 @@ void display_draw_vline(uint8_t x, int8_t start_y, int8_t end_y, uint8_t i)
 #if OPTIMIZE_RAYCASTING
     for (uint8_t c = 0; c < RES_DIVIDER; c++)
     {
-        uint8_t bp;
+        uint8_t bp = 0;
         uint8_t b = 0;
         int8_t y = lower_y;
 

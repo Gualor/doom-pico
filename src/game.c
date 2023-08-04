@@ -193,7 +193,7 @@ void game_init_level_scene(const uint8_t level[])
         game_hud_text = TEXT_GOAL_FIND_EXIT;
 
     // Find player in the map and create instance
-    for (uint8_t y = LEVEL_HEIGHT - 1; y >= 0; y--)
+    for (int16_t y = LEVEL_HEIGHT - 1; y >= 0; y--)
     {
         for (uint8_t x = 0; x < LEVEL_WIDTH; x++)
         {
@@ -385,7 +385,7 @@ void game_remove_static_entity(EntityUID uid)
  */
 void game_remove_dead_enemy(void)
 {
-    uint8_t i = num_entities - 1;
+    int16_t i = num_entities - 1;
     while (i >= 0)
     {
         EntityType type = entities_get_type(entity[i].uid);
@@ -852,7 +852,7 @@ Coords game_translate_into_view(Coords *pos)
  */
 void game_render_map(const uint8_t level[], float view_height)
 {
-    EntityUID last_uid;
+    EntityUID last_uid = UID_NULL;
 
     for (uint8_t x = 0; x < SCREEN_WIDTH; x += RES_DIVIDER)
     {
@@ -1117,6 +1117,7 @@ void game_render_gun(uint8_t pos, float jogging, bool fired, uint8_t reload)
                             clip_height, COLOR_BLACK);
         display_draw_bitmap(x - 10, y - 22, bmp_re2_bits, BMP_RE2_WIDTH,
                             clip_height, COLOR_WHITE);
+        break;
 
     default:
         clip_height = MAX(0, MIN(y + BMP_GUN_HEIGHT, RENDER_HEIGHT) - y);
@@ -1784,7 +1785,7 @@ void game_run_score_scene(void)
  * @brief GAME main function.
  *
  */
-void main(void)
+int main(void)
 {
     /* Initialize game */
     platform_init();
@@ -1807,6 +1808,8 @@ void main(void)
         /* Stop drawing */
         display_draw_stop();
     }
+
+    return 0;
 }
 
 /* -------------------------------------------------------------------------- */
