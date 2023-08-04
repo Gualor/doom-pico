@@ -13,11 +13,14 @@ SRCS := $(shell find $(SRC_DIR) -name "*.c")
 OBJS := $(patsubst $(SRC_DIR)/%,$(BIN_DIR)/%.o,$(SRCS))
 DEPS := $(OBJS:.o=.d)
 
-CFLAGS := -I$(INC_DIR) -MMD -MP -g
 LDFLAGS := -lm
+INC_FLAGS := -I$(INC_DIR)
+CFLAGS := -MMD -MP -Os -ffunction-sections -fdata-sections -Wl,--gc-sections \
+          -Wall -Wextra -Wdouble-promotion -fno-strict-aliasing -fno-exceptions
 
 ifeq ($(USE_RAYLIB), 1)
-    CFLAGS += -I$(RAYLIB_DIR)/include -DUSE_RAYLIB
+    CFLAGS += -DUSE_RAYLIB
+    INC_FLAGS += -I$(RAYLIB_DIR)/include
     LDFLAGS += -L$(RAYLIB_DIR)/lib -lraylib
     ifeq ($(OS), Windows_NT)
         LDFLAGS += -lopengl32 -lgdi32 -lwinmm
@@ -33,7 +36,7 @@ $(TARGET_EXEC): $(OBJS)
 
 $(BIN_DIR)/%.c.o: $(SRC_DIR)/%.c
 	$(MKDIR) $(dir $@)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(INC_FLAGS) -c $< -o $@
 
 $(RAYLIB_DIR):
 	./install_raylib.sh
